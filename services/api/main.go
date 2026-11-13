@@ -203,6 +203,12 @@ func (s *AppState) listForms(c *gin.Context) {
 }
 
 func (s *AppState) createForm(c *gin.Context) {
+	ownerID, ok := middleware.OwnerID(c)
+if !ok {
+	c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+	return
+}
+
 	var req CreateFormRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -234,9 +240,9 @@ func (s *AppState) createForm(c *gin.Context) {
 	}
 
 	_, err := s.DB.Exec(
-		"INSERT INTO forms (id, name, domain, amount_sats, created_at) VALUES (?, ?, ?, ?, ?)",
-		form.ID, form.Name, form.Domain, form.AmountSats, form.CreatedAt,
-	)
+	"INSERT INTO forms (id, owner_id, name, domain, amount_sats, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+	form.ID, ownerID, form.Name, form.Domain, form.AmountSats, form.CreatedAt,
+)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
