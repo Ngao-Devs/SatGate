@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"database/sql"
+	"satgate/internal/middleware"
 
 	// "embed"
 	"encoding/hex"
@@ -204,10 +205,10 @@ func (s *AppState) listForms(c *gin.Context) {
 
 func (s *AppState) createForm(c *gin.Context) {
 	ownerID, ok := middleware.OwnerID(c)
-if !ok {
-	c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-	return
-}
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	var req CreateFormRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -240,9 +241,9 @@ if !ok {
 	}
 
 	_, err := s.DB.Exec(
-	"INSERT INTO forms (id, owner_id, name, domain, amount_sats, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-	form.ID, ownerID, form.Name, form.Domain, form.AmountSats, form.CreatedAt,
-)
+		"INSERT INTO forms (id, owner_id, name, domain, amount_sats, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+		form.ID, ownerID, form.Name, form.Domain, form.AmountSats, form.CreatedAt,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -380,7 +381,6 @@ func (s *AppState) deleteForm(c *gin.Context) {
 
 	c.Status(http.StatusNoContent)
 }
-
 
 func (s *AppState) listMessages(c *gin.Context) {
 	ownerID, ok := middleware.OwnerID(c)
@@ -861,7 +861,7 @@ func verifySignature(headers http.Header, body, secret string) error {
 	expected := hex.EncodeToString(mac.Sum(nil))
 
 	if expected != sig {
-		return fmt.ErroFrf("signature mismatch")
+		return fmt.Errorf("signature mismatch")
 	}
 	return nil
 }
