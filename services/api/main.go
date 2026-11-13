@@ -249,8 +249,13 @@ if !ok {
 	}
 	c.JSON(http.StatusOK, form)
 }
-
 func (s *AppState) updateForm(c *gin.Context) {
+	ownerID, ok := middleware.OwnerID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	id := c.Param("id")
 
 	var req UpdateFormRequest
@@ -276,14 +281,19 @@ func (s *AppState) updateForm(c *gin.Context) {
 	}
 
 	res, err := s.DB.Exec(
-		"UPDATE forms SET name = ?, domain = ?, amount_sats = ? WHERE id = ?",
-		req.Name, req.Domain, req.AmountSats, id,
+		"UPDATE forms SET name = ?, domain = ?, amount_sats = ? WHERE id = ? AND owner_id = ?",
+		req.Name, req.Domain, req.AmountSats, id, ownerID,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	n, _ := res.RowsAffected()
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	if n == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
@@ -294,8 +304,10 @@ func (s *AppState) updateForm(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
 	c.JSON(http.StatusOK, form)
 }
+
 
 func (s *AppState) deleteForm(c *gin.Context) {
 	id := c.Param("id")
