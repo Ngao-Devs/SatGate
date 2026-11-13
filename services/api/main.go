@@ -129,6 +129,15 @@ func main() {
 		state.BlinkApiKey != "",
 		state.BlinkWalletID != "",
 	)
+
+	appEnv := strings.ToLower(getenv("APP_ENV", "production"))
+	jwtSecret := getenv("JWT_SECRET", "")
+	allowMockTokens := appEnv == "development"
+
+	if appEnv != "development" && jwtSecret == "" {
+		log.Fatal("JWT_SECRET must be configured outside development")
+	}
+
 	r := gin.Default()
 	r.Use(cors.Default())
 
@@ -136,12 +145,15 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	r.GET("/api/forms", state.listForms)
-	r.POST("/api/forms", state.createForm)
-	r.PUT("/api/forms/:id", state.updateForm)
-	r.DELETE("/api/forms/:id", state.deleteForm)
+	protected := r.Group("/api")
+	protected.Use(middleware.Auth(jwtSecret, allowMockTokens))
 
-	r.GET("/api/messages", state.listMessages)
+	protected.GET("/forms", state.listForms)
+	protected.POST("/forms", state.createForm)
+	protected.PUT("/forms/:id", state.updateForm)
+	protected.DELETE("/forms/:id", state.deleteForm)
+
+	protected.GET("/messages", state.listMessages)
 
 	r.POST("/api/invoices", state.createInvoice)
 	r.GET("/api/invoices/:id", state.getInvoice)
