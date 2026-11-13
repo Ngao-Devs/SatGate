@@ -383,14 +383,21 @@ func (s *AppState) deleteForm(c *gin.Context) {
 
 
 func (s *AppState) listMessages(c *gin.Context) {
+	ownerID, ok := middleware.OwnerID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	rows, err := s.DB.Query(`
 		SELECT m.id, m.form_id, m.sender_name, m.sender_email, m.body, m.status,
 		       COALESCE(i.amount_sats, 0), m.created_at, m.paid_at
 		FROM messages m
+		JOIN forms f ON f.id = m.form_id
 		LEFT JOIN invoices i ON i.message_id = m.id
-		WHERE m.status = 'paid'
+		WHERE m.status = 'paid' AND f.owner_id = ?
 		ORDER BY m.paid_at DESC, m.created_at DESC
-	`)
+	`, ownerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -409,8 +416,15 @@ func (s *AppState) listMessages(c *gin.Context) {
 		}
 		messages = append(messages, m)
 	}
+
+	if err := rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, messages)
 }
+
 func (s *AppState) createInvoice(c *gin.Context) {
 	log.Printf(
 		"CREATE INVOICE: BlinkApiKey=%t BlinkWalletID=%t",
