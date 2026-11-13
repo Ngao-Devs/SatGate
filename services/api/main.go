@@ -307,9 +307,13 @@ func (s *AppState) updateForm(c *gin.Context) {
 
 	c.JSON(http.StatusOK, form)
 }
-
-
 func (s *AppState) deleteForm(c *gin.Context) {
+	ownerID, ok := middleware.OwnerID(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	id := c.Param("id")
 
 	tx, err := s.DB.Begin()
@@ -320,31 +324,63 @@ func (s *AppState) deleteForm(c *gin.Context) {
 	defer tx.Rollback()
 
 	queries := []string{
-		"DELETE FROM webhook_events WHERE invoice_id IN (SELECT id FROM invoices WHERE message_id IN (SELECT id FROM messages WHERE form_id = ?))",
-		"DELETE FROM invoices WHERE message_id IN (SELECT id FROM messages WHERE form_id = ?)",
-		"DELETE FROM messages WHERE form_id = ?",
+		`DELETE FROM webhook_events
+		 WHERE invoice_id IN (
+			SELECT id FROM invoices
+			WHERE message_id IN (
+				SELECT id FROM messages
+				WHERE form_id IN (
+					SELECT id FROM forms WHERE id = ? AND owner_id = ?
+				)
+			)
+		)`,
+		`DELETE FROM invoices
+		 WHERE message_id IN (
+			SELECT id FROM messages
+			WHERE form_id IN (
+				SELECT id FROM forms WHERE id = ? AND owner_id = ?
+			)
+		)`,
+		`DELETE FROM messages
+		 WHERE form_id IN (
+			SELECT id FROM forms WHERE id = ? AND owner_id = ?
+		)`,
 	}
-	for _, q := range queries {
-		if _, err := tx.Exec(q, id); err != nil {
+
+	for _, query := range queries {
+		if _, err := tx.Exec(query, id, ownerID); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 	}
 
-	res, err := tx.Exec("DELETE FROM forms WHERE id = ?", id)
+	res, err := tx.Exec(
+		"DELETE FROM forms WHERE id = ? AND owner_id = ?",
+		id, ownerID,
+	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	n, _ := res.RowsAffected()
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 	if n == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.Status(http.StatusNoContent)
 }
+
 
 func (s *AppState) listMessages(c *gin.Context) {
 	rows, err := s.DB.Query(`
