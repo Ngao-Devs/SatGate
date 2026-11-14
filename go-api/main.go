@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -63,5 +64,27 @@ func run() error {
 	}
 
 	log.Print("PostgreSQL connection ready; migrations applied")
+
+	// Health endpoint used as a smoke test by deployments and load balancers.
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", handleHealth)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	addr := fmt.Sprintf(":%s", port)
+	log.Printf("go-api: listening on %s", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		return fmt.Errorf("start http server: %w", err)
+	}
 	return nil
+}
+
+func handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if _, err := fmt.Fprint(w, `{"status":"ok"}`); err != nil {
+		log.Printf("go-api: write health response: %v", err)
+	}
 }
