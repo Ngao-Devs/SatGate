@@ -26,8 +26,7 @@ body {
   margin: 0;
   color: var(--color-black);
   background:
-    linear-gradient(180deg, rgba(29, 78, 216, 0.06), rgba(255, 255, 255, 0) 360px),
-    #f8fafc;
+    linear-gradient(180deg, rgba(29, 78, 216, 0.06), rgba(255, 255, 255, 0) 360px), #f8fafc;
   font-family: var(--font-body);
 }
 
@@ -54,7 +53,8 @@ iframe {
 }
 
 @keyframes bounce-custom {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
