@@ -2,17 +2,14 @@ package main
 
 import (
 	"bytes"
-	"crypto/hmac"
-	"crypto/sha256"
-	"crypto/subtle"
 	"database/sql"
 	"satgate/internal/forms"
 	"satgate/internal/invoices"
 	"satgate/internal/messages"
 	"satgate/internal/middleware"
+	"satgate/internal/webhooks"
 
 	// "embed"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -32,17 +29,8 @@ import (
 type AppState struct {
 	DB            *sql.DB
 	Forms         *forms.Service
-	Invoices      *invoices.Service
-	WebhookSecret string
 	BlinkApiKey   string
 	BlinkWalletID string
-}
-
-type LightningWebhook struct {
-	InvoiceID   string  `json:"invoice_id"`
-	PaymentHash *string `json:"payment_hash"`
-	Preimage    *string `json:"preimage"`
-	Status      string  `json:"status"`
 }
 
 type blinkInvoiceResult struct {
@@ -75,11 +63,13 @@ func main() {
 	invoiceService := invoices.NewService(invoiceRepository)
 	invoiceHandler := invoices.NewHandler(invoiceService)
 
+	webhookRepository := webhooks.NewRepository(db)
+	webhookService := webhooks.NewService(webhookRepository, invoiceService, webhookSecret)
+	webhookHandler := webhooks.NewHandler(webhookService)
+
 	state := &AppState{
 		DB:            db,
 		Forms:         formService,
-		Invoices:      invoiceService,
-		WebhookSecret: webhookSecret,
 		BlinkApiKey:   getenv("BLINK_API_KEY", ""),
 		BlinkWalletID: getenv("BLINK_WALLET_ID", ""),
 	}
@@ -128,7 +118,7 @@ func main() {
 		r.POST("/api/invoices/:id/mock-pay", invoiceHandler.MockPay)
 	}
 
-	r.POST("/api/webhooks/lightning", state.lightningWebhook)
+	r.POST("/api/webhooks/lightning", webhookHandler.Handle)
 
 	// sub, err := fs.Sub(staticFiles, "dist")
 	// if err != nil {
@@ -383,77 +373,6 @@ func createBlinkInvoice(
 	}, nil
 }
 
-func (s *AppState) lightningWebhook(c *gin.Context) {
-	body, err := c.GetRawData()
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "could not read body"})
-		return
-	}
-
-	if err := verifySignature(c.Request.Header, string(body), s.WebhookSecret); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "signature verification failed"})
-		return
-	}
-
-	var payload LightningWebhook
-	if err := json.Unmarshal(body, &payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid webhook body"})
-		return
-	}
-
-	if payload.Status != "paid" && payload.Status != "settled" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "webhook status is not paid"})
-		return
-	}
-
-	eventID := c.GetHeader("x-satgate-event-id")
-	if eventID == "" {
-		eventID = uuid.New().String()
-	}
-
-	res, err := s.DB.Exec(
-		"INSERT OR IGNORE INTO webhook_events (id, invoice_id, payload, created_at) VALUES (?, ?, ?, ?)",
-		eventID, payload.InvoiceID, string(body), time.Now().UTC(),
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		resp, err := s.Invoices.GetStatus(c.Request.Context(), payload.InvoiceID)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-			return
-		}
-		c.JSON(http.StatusOK, resp)
-		return
-	}
-
-	if payload.PaymentHash != nil {
-		var existingHash string
-		err := s.DB.QueryRow("SELECT payment_hash FROM invoices WHERE id = ?", payload.InvoiceID).
-			Scan(&existingHash)
-		if err == nil && existingHash != *payload.PaymentHash {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "payment hash does not match invoice"})
-			return
-		}
-	}
-
-	if err := s.Invoices.MarkPaid(c.Request.Context(), payload.InvoiceID, payload.Preimage); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-
-	resp, err := s.Invoices.GetStatus(c.Request.Context(), payload.InvoiceID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
-
 func validateMessagePayload(req invoices.CreateInvoiceRequest) error {
 	if strings.TrimSpace(req.FormID) == "" {
 		return fmt.Errorf("form_id is required")
@@ -466,22 +385,6 @@ func validateMessagePayload(req invoices.CreateInvoiceRequest) error {
 	}
 	if len(strings.TrimSpace(req.Body)) < 10 {
 		return fmt.Errorf("message body must be at least 10 characters")
-	}
-	return nil
-}
-
-func verifySignature(headers http.Header, body, secret string) error {
-	sig := headers.Get("x-satgate-signature")
-	if sig == "" {
-		return fmt.Errorf("missing signature")
-	}
-
-	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(body))
-	expected := hex.EncodeToString(mac.Sum(nil))
-
-	if subtle.ConstantTimeCompare([]byte(expected), []byte(sig)) != 1 {
-		return fmt.Errorf("signature mismatch")
 	}
 	return nil
 }
