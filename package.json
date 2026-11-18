@@ -5,8 +5,13 @@
     "dev": "pnpm --filter @satgo/web dev",
     "build": "pnpm --filter @satgo/web build",
     "lint": "pnpm --filter @satgo/web lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "api:dev": "cargo run --manifest-path services/api/Cargo.toml",
     "api:check": "cargo check --manifest-path services/api/Cargo.toml"
   },
-  "packageManager": "pnpm@10.30.3"
+  "packageManager": "pnpm@10.30.3",
+  "devDependencies": {
+    "prettier": "^3.9.10"
+  }
 }

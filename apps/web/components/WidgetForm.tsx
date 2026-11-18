@@ -17,7 +17,7 @@ type WidgetFormProps = {
 export function WidgetForm({ formId }: WidgetFormProps) {
   const searchParams = useSearchParams();
   const amountSats = parseInt(searchParams.get("amount") || "5", 10);
-  
+
   const [message, setMessage] = useState("");
   const [invoice, setInvoice] = useState<InvoiceResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
@@ -25,7 +25,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [isMock, setIsMock] = useState(false);
-  
+
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -47,16 +47,16 @@ export function WidgetForm({ formId }: WidgetFormProps) {
       const nextQr = await QRCode.toDataURL(nextInvoice.payment_request.toUpperCase(), {
         margin: 2,
         width: 300,
-        errorCorrectionLevel: 'M',
+        errorCorrectionLevel: "M",
         color: {
           dark: "#000000",
           light: "#ffffff",
         },
       });
       setQrDataUrl(nextQr);
-      
+
       startPolling(nextInvoice.payment_hash);
-      
+
       try {
         await payWithWebLn(nextInvoice.payment_request);
       } catch (e) {
@@ -70,7 +70,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
 
   function startPolling(hash: string) {
     if (pollingRef.current) clearInterval(pollingRef.current);
-    
+
     pollingRef.current = setInterval(async () => {
       try {
         const { paid } = await checkInvoice(hash);
@@ -90,15 +90,15 @@ export function WidgetForm({ formId }: WidgetFormProps) {
     try {
       await fetch(`${API_URL}/webhook`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "X-Webhook-Signature": "mock" // Backend main.rs handles this if secret is default
+          "X-Webhook-Signature": "mock", // Backend main.rs handles this if secret is default
         },
         body: JSON.stringify({
           payment_hash: invoice.payment_hash,
           preimage: "0000000000000000000000000000000000000000000000000000000000000000", // mock preimage
-          amount: amountSats
-        })
+          amount: amountSats,
+        }),
       });
     } catch (e) {
       setError("Failed to simulate payment");
@@ -130,8 +130,8 @@ export function WidgetForm({ formId }: WidgetFormProps) {
         </div>
         <h2 className="text-2xl font-bold text-satBlack brand-font">Message Sent!</h2>
         <p className="text-slate-500 max-w-[240px]">Sarah has received your verified message.</p>
-        <button 
-          onClick={() => window.location.reload()} 
+        <button
+          onClick={() => window.location.reload()}
           className="text-satBlue font-semibold hover:underline mt-4"
         >
           Send another message
@@ -160,13 +160,17 @@ export function WidgetForm({ formId }: WidgetFormProps) {
                 className="w-full h-32 bg-white border border-slate-200 rounded-lg p-3 text-satBlack placeholder:text-slate-400 focus:ring-2 focus:ring-satBlue/20 focus:border-satBlue outline-none transition-all resize-none shadow-sm"
               />
             </div>
-            
+
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
               <span className="text-sm font-semibold text-slate-500">Amount</span>
               <span className="font-bold text-satBlue">{amountSats} SATS</span>
             </div>
 
-            <PrimaryButton type="submit" disabled={status === "creating"} className="w-full shadow-sm">
+            <PrimaryButton
+              type="submit"
+              disabled={status === "creating"}
+              className="w-full shadow-sm"
+            >
               {status === "creating" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -188,7 +192,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
                   <img src={qrDataUrl} alt="Lightning Invoice" className="w-44 h-44" />
                 </div>
               )}
-              
+
               <div className="w-full space-y-3">
                 <button
                   onClick={copyToClipboard}
@@ -203,9 +207,9 @@ export function WidgetForm({ formId }: WidgetFormProps) {
                     <Copy className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
                   )}
                 </button>
-                
+
                 <div className="grid grid-cols-2 gap-3">
-                   <button
+                  <button
                     onClick={() => payWithWebLn(invoice?.payment_request || "")}
                     className="flex items-center justify-center p-3 bg-satBlue hover:bg-blue-700 text-white rounded-lg font-bold transition-colors shadow-sm"
                   >
@@ -231,7 +235,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
                 )}
               </div>
             </div>
-            
+
             <div className="p-4 bg-satBlue/5 border border-satBlue/10 rounded-lg">
               <p className="text-xs text-slate-600 leading-relaxed text-center italic">
                 Waiting for network confirmation...

@@ -88,11 +88,11 @@ export async function createForm(data: { name: string; domain: string; amount_sa
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ 
-      owner_id: "demo-user", 
+    body: JSON.stringify({
+      owner_id: "demo-user",
       name: data.name,
       domain: data.domain,
-      min_amount_sats: data.amount_sats
+      min_amount_sats: data.amount_sats,
     }),
   });
 
@@ -103,17 +103,20 @@ export async function createForm(data: { name: string; domain: string; amount_sa
   return response.json();
 }
 
-export async function updateForm(id: string, data: { name: string; domain: string; amount_sats: number }) {
+export async function updateForm(
+  id: string,
+  data: { name: string; domain: string; amount_sats: number },
+) {
   const response = await fetch(`${API_BASE_URL}/sites/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ 
+    body: JSON.stringify({
       name: data.name,
       domain: data.domain,
-      min_amount_sats: data.amount_sats
+      min_amount_sats: data.amount_sats,
     }),
   });
 

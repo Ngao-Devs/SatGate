@@ -10,7 +10,8 @@ export default function NotFound() {
       </div>
       <h1 className="brand-font mt-8 text-4xl font-bold sm:text-6xl">404: Lost in Orbit</h1>
       <p className="mt-4 max-w-md text-lg text-slate-600">
-        We couldn&apos;t find the page you&apos;re looking for. It might have been moved or never existed.
+        We couldn&apos;t find the page you&apos;re looking for. It might have been moved or never
+        existed.
       </p>
       <Link
         href="/"

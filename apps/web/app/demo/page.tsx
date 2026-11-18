@@ -29,15 +29,18 @@ export default function DemoPage() {
         {/* Subtle decorative glow */}
         <div className="absolute -left-1/4 -top-1/4 h-[500px] w-[500px] rounded-full bg-blue-500/10 blur-[100px] pointer-events-none" />
         <div className="absolute -right-1/4 -bottom-1/4 h-[500px] w-[500px] rounded-full bg-blue-500/10 blur-[100px] pointer-events-none" />
-        
+
         <div className="relative mx-auto grid w-full max-w-7xl gap-12 lg:gap-16 px-6 py-16 sm:py-24 lg:grid-cols-[1fr_450px]">
           <div className="flex flex-col justify-center">
-            <p className="text-xs font-bold uppercase tracking-wider text-blue-400">Demo portfolio site</p>
+            <p className="text-xs font-bold uppercase tracking-wider text-blue-400">
+              Demo portfolio site
+            </p>
             <h1 className="brand-font mt-4 max-w-2xl text-4xl font-bold leading-tight text-white sm:text-5xl lg:text-6xl">
               Sarah builds sharp websites for independent founders.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
-              This page shows how SatGo fits into a normal website. The contact form below is embedded as an iframe and only delivers paid messages.
+              This page shows how SatGo fits into a normal website. The contact form below is
+              embedded as an iframe and only delivers paid messages.
             </p>
           </div>
 
@@ -71,12 +74,20 @@ export default function DemoPage() {
       </section>
 
       {/* Embedded Iframe Form Section */}
-      <section className="mx-auto grid w-full max-w-7xl gap-12 lg:gap-16 px-6 py-20 lg:py-28 lg:grid-cols-[1fr_480px]" id="contact">
+      <section
+        className="mx-auto grid w-full max-w-7xl gap-12 lg:gap-16 px-6 py-20 lg:py-28 lg:grid-cols-[1fr_480px]"
+        id="contact"
+      >
         <div className="flex flex-col justify-center">
-          <p className="text-xs font-bold uppercase tracking-wider text-satBlue">Protected contact</p>
-          <h2 className="brand-font mt-3 text-3xl font-bold text-satBlack sm:text-4xl leading-tight">Spam-resistant by default</h2>
+          <p className="text-xs font-bold uppercase tracking-wider text-satBlue">
+            Protected contact
+          </p>
+          <h2 className="brand-font mt-3 text-3xl font-bold text-satBlack sm:text-4xl leading-tight">
+            Spam-resistant by default
+          </h2>
           <p className="mt-4 max-w-xl text-lg leading-relaxed text-slate-600">
-            A visitor pays a few sats before the message reaches Sarah. Real leads keep a simple path, while automated bulk spam gets a direct cost.
+            A visitor pays a few sats before the message reaches Sarah. Real leads keep a simple
+            path, while automated bulk spam gets a direct cost.
           </p>
           <div className="mt-10 grid gap-4 sm:grid-cols-3">
             <Fact label="Widget" value="iframe" />
@@ -107,4 +118,3 @@ function Fact({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
