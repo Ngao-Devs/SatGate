@@ -7,6 +7,8 @@ import (
 	"crypto/subtle"
 	"database/sql"
 	"satgate/internal/forms"
+	"satgate/internal/invoices"
+	"satgate/internal/messages"
 	"satgate/internal/middleware"
 
 	// "embed"
@@ -30,44 +32,10 @@ import (
 type AppState struct {
 	DB            *sql.DB
 	Forms         *forms.Service
+	Invoices      *invoices.Service
 	WebhookSecret string
 	BlinkApiKey   string
 	BlinkWalletID string
-}
-
-type Message struct {
-	ID          string     `json:"id"`
-	FormID      string     `json:"form_id"`
-	SenderName  string     `json:"sender_name"`
-	SenderEmail string     `json:"sender_email"`
-	Body        string     `json:"body"`
-	Status      string     `json:"status"`
-	AmountSats  int64      `json:"amount_sats"`
-	CreatedAt   time.Time  `json:"created_at"`
-	PaidAt      *time.Time `json:"paid_at"`
-}
-
-type CreateInvoiceRequest struct {
-	FormID      string `json:"form_id"`
-	SenderName  string `json:"sender_name"`
-	SenderEmail string `json:"sender_email"`
-	Body        string `json:"body"`
-}
-
-type InvoiceResponse struct {
-	InvoiceID      string    `json:"invoice_id"`
-	MessageID      string    `json:"message_id"`
-	PaymentRequest string    `json:"payment_request"`
-	AmountSats     int64     `json:"amount_sats"`
-	Status         string    `json:"status"`
-	ExpiresAt      time.Time `json:"expires_at"`
-}
-
-type InvoiceStatusResponse struct {
-	InvoiceID string     `json:"invoice_id"`
-	MessageID string     `json:"message_id"`
-	Status    string     `json:"status"`
-	PaidAt    *time.Time `json:"paid_at"`
 }
 
 type LightningWebhook struct {
@@ -103,15 +71,24 @@ func main() {
 	formRepository := forms.NewRepository(db)
 	formService := forms.NewService(formRepository)
 
+	invoiceRepository := invoices.NewRepository(db)
+	invoiceService := invoices.NewService(invoiceRepository)
+	invoiceHandler := invoices.NewHandler(invoiceService)
+
 	state := &AppState{
 		DB:            db,
 		Forms:         formService,
+		Invoices:      invoiceService,
 		WebhookSecret: webhookSecret,
 		BlinkApiKey:   getenv("BLINK_API_KEY", ""),
 		BlinkWalletID: getenv("BLINK_WALLET_ID", ""),
 	}
 
 	formHandler := forms.NewHandler(formService)
+
+	messageRepository := messages.NewRepository(db)
+	messageService := messages.NewService(messageRepository)
+	messageHandler := messages.NewHandler(messageService)
 
 	log.Printf(
 		"Blink configured: api_key=%t wallet_id=%t",
@@ -142,13 +119,13 @@ func main() {
 	protected.PUT("/forms/:id", formHandler.Update)
 	protected.DELETE("/forms/:id", formHandler.Delete)
 
-	protected.GET("/messages", state.listMessages)
+	protected.GET("/messages", messageHandler.List)
 
 	r.POST("/api/invoices", state.createInvoice)
-	r.GET("/api/invoices/:id", state.getInvoice)
+	r.GET("/api/invoices/:id", invoiceHandler.Get)
 
 	if allowMockTokens {
-		r.POST("/api/invoices/:id/mock-pay", state.mockPayInvoice)
+		r.POST("/api/invoices/:id/mock-pay", invoiceHandler.MockPay)
 	}
 
 	r.POST("/api/webhooks/lightning", state.lightningWebhook)
@@ -172,49 +149,6 @@ func main() {
 	}
 }
 
-func (s *AppState) listMessages(c *gin.Context) {
-	ownerID, ok := middleware.OwnerID(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	rows, err := s.DB.Query(`
-		SELECT m.id, m.form_id, m.sender_name, m.sender_email, m.body, m.status,
-		       COALESCE(i.amount_sats, 0), m.created_at, m.paid_at
-		FROM messages m
-		JOIN forms f ON f.id = m.form_id
-		LEFT JOIN invoices i ON i.message_id = m.id
-		WHERE m.status = 'paid' AND f.owner_id = ?
-		ORDER BY m.paid_at DESC, m.created_at DESC
-	`, ownerID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	messages := []Message{}
-	for rows.Next() {
-		var m Message
-		if err := rows.Scan(
-			&m.ID, &m.FormID, &m.SenderName, &m.SenderEmail,
-			&m.Body, &m.Status, &m.AmountSats, &m.CreatedAt, &m.PaidAt,
-		); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		messages = append(messages, m)
-	}
-
-	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, messages)
-}
-
 func (s *AppState) createInvoice(c *gin.Context) {
 	log.Printf(
 		"CREATE INVOICE: BlinkApiKey=%t BlinkWalletID=%t",
@@ -222,7 +156,7 @@ func (s *AppState) createInvoice(c *gin.Context) {
 		s.BlinkWalletID != "",
 	)
 
-	var req CreateInvoiceRequest
+	var req invoices.CreateInvoiceRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -346,7 +280,7 @@ func (s *AppState) createInvoice(c *gin.Context) {
 		paymentHash,
 	)
 
-	c.JSON(http.StatusOK, InvoiceResponse{
+	c.JSON(http.StatusOK, invoices.InvoiceResponse{
 		InvoiceID:      invoiceID,
 		MessageID:      messageID,
 		PaymentRequest: paymentRequest,
@@ -449,31 +383,6 @@ func createBlinkInvoice(
 	}, nil
 }
 
-func (s *AppState) getInvoice(c *gin.Context) {
-	id := c.Param("id")
-	resp, err := s.fetchInvoiceStatus(id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
-
-func (s *AppState) mockPayInvoice(c *gin.Context) {
-	id := c.Param("id")
-	preimage := "mock-preimage"
-	if err := s.markInvoicePaid(id, &preimage); err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
-	resp, err := s.fetchInvoiceStatus(id)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, resp)
-}
-
 func (s *AppState) lightningWebhook(c *gin.Context) {
 	body, err := c.GetRawData()
 	if err != nil {
@@ -513,7 +422,7 @@ func (s *AppState) lightningWebhook(c *gin.Context) {
 
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		resp, err := s.fetchInvoiceStatus(payload.InvoiceID)
+		resp, err := s.Invoices.GetStatus(c.Request.Context(), payload.InvoiceID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 			return
@@ -532,12 +441,12 @@ func (s *AppState) lightningWebhook(c *gin.Context) {
 		}
 	}
 
-	if err := s.markInvoicePaid(payload.InvoiceID, payload.Preimage); err != nil {
+	if err := s.Invoices.MarkPaid(c.Request.Context(), payload.InvoiceID, payload.Preimage); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
 
-	resp, err := s.fetchInvoiceStatus(payload.InvoiceID)
+	resp, err := s.Invoices.GetStatus(c.Request.Context(), payload.InvoiceID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -545,56 +454,7 @@ func (s *AppState) lightningWebhook(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
-func (s *AppState) fetchInvoiceStatus(id string) (*InvoiceStatusResponse, error) {
-	var resp InvoiceStatusResponse
-	err := s.DB.QueryRow(
-		"SELECT id, message_id, status, paid_at FROM invoices WHERE id = ?", id,
-	).Scan(&resp.InvoiceID, &resp.MessageID, &resp.Status, &resp.PaidAt)
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
-}
-
-func (s *AppState) markInvoicePaid(invoiceID string, preimage *string) error {
-	tx, err := s.DB.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	paidAt := time.Now().UTC()
-
-	res, err := tx.Exec(`
-		UPDATE invoices SET status = 'paid', paid_at = ?, preimage = COALESCE(?, preimage)
-		WHERE id = ? AND status != 'paid'`,
-		paidAt, preimage, invoiceID,
-	)
-	if err != nil {
-		return err
-	}
-
-	var messageID string
-	err = tx.QueryRow("SELECT message_id FROM invoices WHERE id = ?", invoiceID).Scan(&messageID)
-	if err != nil {
-		return fmt.Errorf("invoice not found")
-	}
-
-	n, _ := res.RowsAffected()
-	if n > 0 {
-		_, err = tx.Exec(
-			"UPDATE messages SET status = 'paid', paid_at = ? WHERE id = ?",
-			paidAt, messageID,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
-}
-
-func validateMessagePayload(req CreateInvoiceRequest) error {
+func validateMessagePayload(req invoices.CreateInvoiceRequest) error {
 	if strings.TrimSpace(req.FormID) == "" {
 		return fmt.Errorf("form_id is required")
 	}
