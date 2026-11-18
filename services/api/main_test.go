@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"satgate/internal/forms"
+	"satgate/internal/messages"
 	"satgate/internal/middleware"
 )
 
@@ -74,10 +75,13 @@ func newTestAPI(t *testing.T) (*sql.DB, *gin.Engine) {
 		}
 	}
 
-	state := &AppState{DB: db}
 	formRepository := forms.NewRepository(db)
 	formService := forms.NewService(formRepository)
 	formHandler := forms.NewHandler(formService)
+
+	messageRepository := messages.NewRepository(db)
+	messageService := messages.NewService(messageRepository)
+	messageHandler := messages.NewHandler(messageService)
 
 	router := gin.New()
 	protected := router.Group("/api")
@@ -86,7 +90,7 @@ func newTestAPI(t *testing.T) (*sql.DB, *gin.Engine) {
 	protected.GET("/forms", formHandler.List)
 	protected.PUT("/forms/:id", formHandler.Update)
 	protected.DELETE("/forms/:id", formHandler.Delete)
-	protected.GET("/messages", state.listMessages)
+	protected.GET("/messages", messageHandler.List)
 
 	t.Cleanup(func() {
 		db.Close()
@@ -219,16 +223,16 @@ func TestOwnerOnlySeesOwnPaidMessages(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var messages []Message
-	if err := json.Unmarshal(response.Body.Bytes(), &messages); err != nil {
+	var messageList []messages.Message
+	if err := json.Unmarshal(response.Body.Bytes(), &messageList); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(messages) != 1 {
-		t.Fatalf("expected 1 message, got %d", len(messages))
+	if len(messageList) != 1 {
+		t.Fatalf("expected 1 message, got %d", len(messageList))
 	}
 
-	if messages[0].FormID != "form-owner-a" {
-		t.Fatalf("owner A received another owner's message: %+v", messages[0])
+	if messageList[0].FormID != "form-owner-a" {
+		t.Fatalf("owner A received another owner's message: %+v", messageList[0])
 	}
 }
