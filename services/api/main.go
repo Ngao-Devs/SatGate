@@ -158,7 +158,10 @@ func main() {
 
 	r.POST("/api/invoices", state.createInvoice)
 	r.GET("/api/invoices/:id", state.getInvoice)
-	r.POST("/api/invoices/:id/mock-pay", state.mockPayInvoice)
+
+	if allowMockTokens {
+		r.POST("/api/invoices/:id/mock-pay", state.mockPayInvoice)
+	}
 
 	r.POST("/api/webhooks/lightning", state.lightningWebhook)
 
