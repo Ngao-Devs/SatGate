@@ -43,6 +43,8 @@ func (h *Handler) Handle(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "webhook status is not paid"})
 	case ErrPaymentHash:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "payment hash does not match invoice"})
+	case ErrDuplicateNotFound:
+		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 	case ErrNotFound:
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 	case ErrInternal:
