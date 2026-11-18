@@ -1,171 +1,156 @@
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080") + "/api";
+import type {
+  SatGoForm,
+  SatGoMessage,
+  InvoiceResponse,
+  InvoiceStatusResponse,
+} from "./types";
+
+const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api`;
 
 export const API_URL = API_BASE_URL;
 
-function getAuthHeaders() {
-  const headers: Record<string, string> = {};
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("satgo_token");
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    } else {
-      // In development / demo, fallback to a mock token to avoid setup friction
-      headers["Authorization"] = "Bearer mock-owner-demo-user";
-    }
-  } else {
-    headers["Authorization"] = "Bearer mock-owner-demo-user";
+type CreateInvoicePayload = {
+  sender_name: string;
+  sender_email: string;
+  body: string;
+};
+
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") {
+    return {};
   }
-  return headers;
+
+  const token = localStorage.getItem("satgo_token");
+
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    return { Authorization: "Bearer mock-owner-demo-user" };
+  }
+
+  return {};
 }
 
-export async function createInvoice(site_id: string, message: string, amount_sats: number) {
+async function getErrorMessage(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => null);
+
+  if (body && typeof body.error === "string") {
+    return body.error;
+  }
+
+  return fallback;
+}
+
+export async function createInvoice(
+  formId: string,
+  payload: CreateInvoicePayload,
+): Promise<InvoiceResponse> {
   const response = await fetch(`${API_BASE_URL}/invoices`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ site_id, message, amount_sats }),
+    body: JSON.stringify({
+      form_id: formId,
+      sender_name: payload.sender_name,
+      sender_email: payload.sender_email,
+      body: payload.body,
+    }),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to create invoice");
+    throw new Error(await getErrorMessage(response, "Failed to create invoice"));
   }
 
   return response.json();
 }
 
-export async function checkInvoice(payment_hash: string) {
-  const response = await fetch(`${API_BASE_URL}/invoices/${payment_hash}`);
+export async function checkInvoice(invoiceId: string): Promise<InvoiceStatusResponse> {
+  const response = await fetch(`${API_BASE_URL}/invoices/${encodeURIComponent(invoiceId)}`);
+
   if (!response.ok) {
-    throw new Error("Failed to check invoice status");
+    throw new Error(await getErrorMessage(response, "Failed to check invoice status"));
   }
+
   return response.json();
 }
 
-export async function getSite(site_id: string) {
-  const response = await fetch(`${API_BASE_URL}/sites/${site_id}`, {
+export async function getForms(): Promise<SatGoForm[]> {
+  const response = await fetch(`${API_BASE_URL}/forms`, {
     headers: getAuthHeaders(),
   });
+
   if (!response.ok) {
-    throw new Error("Site not found");
+    throw new Error(await getErrorMessage(response, "Failed to load forms"));
   }
+
   return response.json();
 }
 
-export async function getSubmissions(site_id: string) {
-  const response = await fetch(`${API_BASE_URL}/sites/${site_id}/submissions`, {
+export async function getMessages(): Promise<SatGoMessage[]> {
+  const response = await fetch(`${API_BASE_URL}/messages`, {
     headers: getAuthHeaders(),
   });
+
   if (!response.ok) {
-    throw new Error("Failed to load submissions");
+    throw new Error(await getErrorMessage(response, "Failed to load messages"));
   }
+
   return response.json();
 }
 
-// Aliases for the Dashboard UI
-export async function getForms() {
-  const response = await fetch(`${API_BASE_URL}/sites`, {
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error("Failed to load forms");
-  }
-  return response.json();
-}
-
-export async function getMessages() {
-  const response = await fetch(`${API_BASE_URL}/submissions`, {
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) {
-    throw new Error("Failed to load messages");
-  }
-  return response.json();
-}
-
-export async function createForm(data: { name: string; domain: string; amount_sats: number }) {
-  const response = await fetch(`${API_BASE_URL}/sites`, {
+export async function createForm(data: {
+  name: string;
+  domain: string;
+  amount_sats: number;
+}): Promise<SatGoForm> {
+  const response = await fetch(`${API_BASE_URL}/forms`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ 
-      owner_id: "demo-user", 
-      name: data.name,
-      domain: data.domain,
-      min_amount_sats: data.amount_sats
-    }),
+    body: JSON.stringify(data),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to create form");
+    throw new Error(await getErrorMessage(response, "Failed to create form"));
   }
 
   return response.json();
 }
 
-export async function updateForm(id: string, data: { name: string; domain: string; amount_sats: number }) {
-  const response = await fetch(`${API_BASE_URL}/sites/${id}`, {
-    method: "PATCH",
+export async function updateForm(
+  id: string,
+  data: {
+    name: string;
+    domain: string;
+    amount_sats: number;
+  },
+): Promise<SatGoForm> {
+  const response = await fetch(`${API_BASE_URL}/forms/${encodeURIComponent(id)}`, {
+    method: "PUT",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ 
-      name: data.name,
-      domain: data.domain,
-      min_amount_sats: data.amount_sats
-    }),
+    body: JSON.stringify(data),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update form");
+    throw new Error(await getErrorMessage(response, "Failed to update form"));
   }
 
   return response.json();
 }
 
-export async function deleteForm(id: string) {
-  const response = await fetch(`${API_BASE_URL}/sites/${id}`, {
+export async function deleteForm(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/forms/${encodeURIComponent(id)}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    throw new Error("Failed to delete form");
+    throw new Error(await getErrorMessage(response, "Failed to delete form"));
   }
-}
-
-export async function createSite(owner_id: string, name: string) {
-  const response = await fetch(`${API_BASE_URL}/sites`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify({ owner_id, name }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to create site");
-  }
-
-  return response.json();
-}
-
-export async function withdrawSats(site_id: string, invoice: string) {
-  const response = await fetch(`${API_BASE_URL}/withdraw`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify({ site_id, invoice }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || "Failed to process withdrawal");
-  }
-
-  return response.json();
 }
