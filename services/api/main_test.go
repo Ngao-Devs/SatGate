@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"satgate/internal/forms"
 	"satgate/internal/middleware"
 )
 
@@ -29,7 +30,7 @@ func newTestAPI(t *testing.T) (*sql.DB, *gin.Engine) {
 
 	now := time.Now().UTC()
 
-	forms := []struct {
+	formFixtures := []struct {
 		id      string
 		ownerID string
 		name    string
@@ -38,7 +39,7 @@ func newTestAPI(t *testing.T) (*sql.DB, *gin.Engine) {
 		{"form-owner-b", "owner-b", "Owner B Form"},
 	}
 
-	for _, form := range forms {
+	for _, form := range formFixtures {
 		_, err := db.Exec(`
 			INSERT INTO forms (id, owner_id, name, domain, amount_sats, created_at)
 			VALUES (?, ?, ?, ?, ?, ?)
@@ -74,14 +75,17 @@ func newTestAPI(t *testing.T) (*sql.DB, *gin.Engine) {
 	}
 
 	state := &AppState{DB: db}
+	formRepository := forms.NewRepository(db)
+	formService := forms.NewService(formRepository)
+	formHandler := forms.NewHandler(formService)
 
 	router := gin.New()
 	protected := router.Group("/api")
 	protected.Use(middleware.Auth("", true))
 
-	protected.GET("/forms", state.listForms)
-	protected.PUT("/forms/:id", state.updateForm)
-	protected.DELETE("/forms/:id", state.deleteForm)
+	protected.GET("/forms", formHandler.List)
+	protected.PUT("/forms/:id", formHandler.Update)
+	protected.DELETE("/forms/:id", formHandler.Delete)
 	protected.GET("/messages", state.listMessages)
 
 	t.Cleanup(func() {
@@ -123,13 +127,13 @@ func TestOwnerCannotAccessAnotherOwnersForm(t *testing.T) {
 		t.Fatalf("expected 200, got %d", response.Code)
 	}
 
-	var forms []Form
-	if err := json.Unmarshal(response.Body.Bytes(), &forms); err != nil {
+	var formList []forms.Form
+	if err := json.Unmarshal(response.Body.Bytes(), &formList); err != nil {
 		t.Fatal(err)
 	}
 
-	if len(forms) != 1 || forms[0].ID != "form-owner-a" {
-		t.Fatalf("owner A received unexpected forms: %+v", forms)
+	if len(formList) != 1 || formList[0].ID != "form-owner-a" {
+		t.Fatalf("owner A received unexpected forms: %+v", formList)
 	}
 
 	// Owner A must not update Owner B's form.
@@ -190,7 +194,7 @@ func TestOwnerCanUpdateOwnForm(t *testing.T) {
 			response.Code, response.Body.String())
 	}
 
-	var form Form
+	var form forms.Form
 	if err := json.Unmarshal(response.Body.Bytes(), &form); err != nil {
 		t.Fatal(err)
 	}
