@@ -19,12 +19,13 @@ import (
 type ErrorKind string
 
 const (
-	ErrSignature     ErrorKind = "signature"
-	ErrInvalidBody   ErrorKind = "invalid_body"
-	ErrInvalidStatus ErrorKind = "invalid_status"
-	ErrInternal      ErrorKind = "internal"
-	ErrNotFound      ErrorKind = "not_found"
-	ErrPaymentHash   ErrorKind = "payment_hash"
+	ErrSignature         ErrorKind = "signature"
+	ErrInvalidBody       ErrorKind = "invalid_body"
+	ErrInvalidStatus     ErrorKind = "invalid_status"
+	ErrInternal          ErrorKind = "internal"
+	ErrNotFound          ErrorKind = "not_found"
+	ErrPaymentHash       ErrorKind = "payment_hash"
+	ErrDuplicateNotFound ErrorKind = "duplicate_not_found"
 )
 
 type ProcessingError struct {
@@ -94,7 +95,10 @@ func (s *Service) Process(
 	if !recorded {
 		response, err := s.invoiceService.GetStatus(ctx, payload.InvoiceID)
 		if err != nil {
-			return nil, &ProcessingError{Kind: ErrNotFound, Err: err}
+			return nil, &ProcessingError{
+				Kind: ErrDuplicateNotFound,
+				Err:  errors.New("not found"),
+			}
 		}
 		return response, nil
 	}
