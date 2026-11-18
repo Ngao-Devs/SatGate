@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
+	"satgate/internal/forms"
 	"satgate/internal/middleware"
 
 	// "embed"
@@ -28,17 +29,10 @@ import (
 
 type AppState struct {
 	DB            *sql.DB
+	Forms         *forms.Service
 	WebhookSecret string
 	BlinkApiKey   string
 	BlinkWalletID string
-}
-
-type Form struct {
-	ID         string    `json:"id"`
-	Name       string    `json:"name"`
-	Domain     string    `json:"domain"`
-	AmountSats int64     `json:"amount_sats"`
-	CreatedAt  time.Time `json:"created_at"`
 }
 
 type Message struct {
@@ -51,18 +45,6 @@ type Message struct {
 	AmountSats  int64      `json:"amount_sats"`
 	CreatedAt   time.Time  `json:"created_at"`
 	PaidAt      *time.Time `json:"paid_at"`
-}
-
-type CreateFormRequest struct {
-	Name       string `json:"name"`
-	Domain     string `json:"domain"`
-	AmountSats int64  `json:"amount_sats"`
-}
-
-type UpdateFormRequest struct {
-	Name       string `json:"name"`
-	Domain     string `json:"domain"`
-	AmountSats int64  `json:"amount_sats"`
 }
 
 type CreateInvoiceRequest struct {
@@ -118,12 +100,18 @@ func main() {
 	if err := seedDefaultForm(db); err != nil {
 		log.Fatalf("seed failed: %v", err)
 	}
+	formRepository := forms.NewRepository(db)
+	formService := forms.NewService(formRepository)
+
 	state := &AppState{
 		DB:            db,
+		Forms:         formService,
 		WebhookSecret: webhookSecret,
 		BlinkApiKey:   getenv("BLINK_API_KEY", ""),
 		BlinkWalletID: getenv("BLINK_WALLET_ID", ""),
 	}
+
+	formHandler := forms.NewHandler(formService)
 
 	log.Printf(
 		"Blink configured: api_key=%t wallet_id=%t",
@@ -149,10 +137,10 @@ func main() {
 	protected := r.Group("/api")
 	protected.Use(middleware.Auth(jwtSecret, allowMockTokens))
 
-	protected.GET("/forms", state.listForms)
-	protected.POST("/forms", state.createForm)
-	protected.PUT("/forms/:id", state.updateForm)
-	protected.DELETE("/forms/:id", state.deleteForm)
+	protected.GET("/forms", formHandler.List)
+	protected.POST("/forms", formHandler.Create)
+	protected.PUT("/forms/:id", formHandler.Update)
+	protected.DELETE("/forms/:id", formHandler.Delete)
 
 	protected.GET("/messages", state.listMessages)
 
@@ -182,220 +170,6 @@ func main() {
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
-}
-
-func (s *AppState) listForms(c *gin.Context) {
-	ownerID, ok := middleware.OwnerID(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	rows, err := s.DB.Query(
-		"SELECT id, name, domain, amount_sats, created_at FROM forms WHERE owner_id = ? ORDER BY created_at DESC",
-		ownerID,
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer rows.Close()
-
-	forms := []Form{}
-	for rows.Next() {
-		var f Form
-		if err := rows.Scan(&f.ID, &f.Name, &f.Domain, &f.AmountSats, &f.CreatedAt); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		forms = append(forms, f)
-	}
-
-	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, forms)
-}
-
-func (s *AppState) createForm(c *gin.Context) {
-	ownerID, ok := middleware.OwnerID(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	var req CreateFormRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	req.Name = strings.TrimSpace(req.Name)
-	req.Domain = strings.TrimSpace(req.Domain)
-
-	if req.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "form name is required"})
-		return
-	}
-	if req.Domain == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "allowed domain is required"})
-		return
-	}
-	if req.AmountSats < 1 || req.AmountSats > 10_000 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "amount_sats must be between 1 and 10000"})
-		return
-	}
-
-	form := Form{
-		ID:         uuid.New().String(),
-		Name:       req.Name,
-		Domain:     req.Domain,
-		AmountSats: req.AmountSats,
-		CreatedAt:  time.Now().UTC(),
-	}
-
-	_, err := s.DB.Exec(
-		"INSERT INTO forms (id, owner_id, name, domain, amount_sats, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-		form.ID, ownerID, form.Name, form.Domain, form.AmountSats, form.CreatedAt,
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, form)
-}
-func (s *AppState) updateForm(c *gin.Context) {
-	ownerID, ok := middleware.OwnerID(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	id := c.Param("id")
-
-	var req UpdateFormRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	req.Name = strings.TrimSpace(req.Name)
-	req.Domain = strings.TrimSpace(req.Domain)
-
-	if req.Name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "form name is required"})
-		return
-	}
-	if req.Domain == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "allowed domain is required"})
-		return
-	}
-	if req.AmountSats < 1 || req.AmountSats > 10_000 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "amount_sats must be between 1 and 10000"})
-		return
-	}
-
-	res, err := s.DB.Exec(
-		"UPDATE forms SET name = ?, domain = ?, amount_sats = ? WHERE id = ? AND owner_id = ?",
-		req.Name, req.Domain, req.AmountSats, id, ownerID,
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	n, err := res.RowsAffected()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if n == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-		return
-	}
-
-	form, err := s.findForm(id, ownerID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, form)
-}
-func (s *AppState) deleteForm(c *gin.Context) {
-	ownerID, ok := middleware.OwnerID(c)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	id := c.Param("id")
-
-	tx, err := s.DB.Begin()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	defer tx.Rollback()
-
-	queries := []string{
-		`DELETE FROM webhook_events
-		 WHERE invoice_id IN (
-			SELECT id FROM invoices
-			WHERE message_id IN (
-				SELECT id FROM messages
-				WHERE form_id IN (
-					SELECT id FROM forms WHERE id = ? AND owner_id = ?
-				)
-			)
-		)`,
-		`DELETE FROM invoices
-		 WHERE message_id IN (
-			SELECT id FROM messages
-			WHERE form_id IN (
-				SELECT id FROM forms WHERE id = ? AND owner_id = ?
-			)
-		)`,
-		`DELETE FROM messages
-		 WHERE form_id IN (
-			SELECT id FROM forms WHERE id = ? AND owner_id = ?
-		)`,
-	}
-
-	for _, query := range queries {
-		if _, err := tx.Exec(query, id, ownerID); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
-	res, err := tx.Exec(
-		"DELETE FROM forms WHERE id = ? AND owner_id = ?",
-		id, ownerID,
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	n, err := res.RowsAffected()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	if n == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
-		return
-	}
-
-	if err := tx.Commit(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.Status(http.StatusNoContent)
 }
 
 func (s *AppState) listMessages(c *gin.Context) {
@@ -462,7 +236,7 @@ func (s *AppState) createInvoice(c *gin.Context) {
 		return
 	}
 
-	form, err := s.findPublicForm(req.FormID)
+	form, err := s.Forms.GetPublic(c.Request.Context(), req.FormID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "form not found"})
 		return
@@ -769,44 +543,6 @@ func (s *AppState) lightningWebhook(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, resp)
-}
-
-func (s *AppState) findForm(id, ownerID string) (*Form, error) {
-	log.Printf("FIND FORM: looking for id=%q", id)
-
-	var f Form
-	err := s.DB.QueryRow(
-		"SELECT id, name, domain, amount_sats, created_at FROM forms WHERE id = ? AND owner_id = ?",
-		id, ownerID,
-	).Scan(&f.ID, &f.Name, &f.Domain, &f.AmountSats, &f.CreatedAt)
-	if err != nil {
-		log.Printf("FIND FORM: query failed: %v", err)
-
-		return nil, err
-	}
-
-	log.Printf("FIND FORM: found %+v", f)
-
-	log.Printf("FIND FORM: found id=%q name=%q amount=%d",
-		f.ID,
-		f.Name,
-		f.AmountSats,
-	)
-
-	return &f, nil
-}
-
-// findPublicForm retrieves a form by ID for public invoice creation.
-func (s *AppState) findPublicForm(id string) (*Form, error) {
-	var f Form
-	err := s.DB.QueryRow(
-		"SELECT id, name, domain, amount_sats, created_at FROM forms WHERE id = ?", id,
-	).Scan(&f.ID, &f.Name, &f.Domain, &f.AmountSats, &f.CreatedAt)
-	if err != nil {
-		return nil, err
-	}
-
-	return &f, nil
 }
 
 func (s *AppState) fetchInvoiceStatus(id string) (*InvoiceStatusResponse, error) {
