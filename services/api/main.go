@@ -1,16 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"satgate/internal/forms"
 	"satgate/internal/invoices"
+	"satgate/internal/lightning"
 	"satgate/internal/messages"
 	"satgate/internal/middleware"
 	"satgate/internal/webhooks"
 
 	// "embed"
-	"encoding/json"
 	"fmt"
 
 	// "io/fs"
@@ -31,11 +30,6 @@ type AppState struct {
 	Forms         *forms.Service
 	BlinkApiKey   string
 	BlinkWalletID string
-}
-
-type blinkInvoiceResult struct {
-	PaymentRequest string
-	PaymentHash    string
 }
 
 func main() {
@@ -174,7 +168,7 @@ func (s *AppState) createInvoice(c *gin.Context) {
 		strings.TrimSpace(req.SenderName),
 	)
 
-	blink, err := createBlinkInvoice(
+	blink, err := lightning.CreateInvoice(
 		s.BlinkApiKey,
 		s.BlinkWalletID,
 		form.AmountSats,
@@ -278,99 +272,6 @@ func (s *AppState) createInvoice(c *gin.Context) {
 		Status:         "pending",
 		ExpiresAt:      expiresAt,
 	})
-}
-func createBlinkInvoice(
-	apiKey string,
-	walletID string,
-	amountSats int64,
-	memo string,
-) (*blinkInvoiceResult, error) {
-
-	payload := map[string]any{
-		"query": `
-            mutation LnInvoiceCreate($input: LnInvoiceCreateInput!) {
-                lnInvoiceCreate(input: $input) {
-                    invoice {
-                        paymentRequest
-                        paymentHash
-                    }
-                    errors {
-                        message
-                    }
-                }
-            }
-        `,
-		"variables": map[string]any{
-			"input": map[string]any{
-				"walletId": walletID,
-				"amount":   amountSats,
-				"memo":     memo,
-			},
-		},
-	}
-
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest(
-		http.MethodPost,
-		"https://api.blink.sv/graphql",
-		bytes.NewReader(body),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-API-KEY", apiKey)
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("blink returned HTTP %s", resp.Status)
-	}
-
-	var result struct {
-		Data struct {
-			LnInvoiceCreate struct {
-				Invoice struct {
-					PaymentRequest string `json:"paymentRequest"`
-					PaymentHash    string `json:"paymentHash"`
-				} `json:"invoice"`
-				Errors []struct {
-					Message string `json:"message"`
-				} `json:"errors"`
-			} `json:"lnInvoiceCreate"`
-		} `json:"data"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-
-	invoice := result.Data.LnInvoiceCreate.Invoice
-
-	if len(result.Data.LnInvoiceCreate.Errors) > 0 {
-		return nil, fmt.Errorf(
-			"blink error: %s",
-			result.Data.LnInvoiceCreate.Errors[0].Message,
-		)
-	}
-
-	if invoice.PaymentRequest == "" {
-		return nil, fmt.Errorf("blink returned empty invoice")
-	}
-
-	return &blinkInvoiceResult{
-		PaymentRequest: invoice.PaymentRequest,
-		PaymentHash:    invoice.PaymentHash,
-	}, nil
 }
 
 func validateMessagePayload(req invoices.CreateInvoiceRequest) error {
