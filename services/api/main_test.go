@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"satgate/internal/database"
 	"strings"
 	"testing"
 	"time"
@@ -24,7 +25,7 @@ func newTestAPI(t *testing.T) (*sql.DB, *gin.Engine) {
 		t.Fatal(err)
 	}
 
-	if err := runMigrations(db); err != nil {
+	if err := database.RunMigrations(db); err != nil {
 		db.Close()
 		t.Fatal(err)
 	}
