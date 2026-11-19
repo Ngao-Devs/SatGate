@@ -2,15 +2,7 @@
 
 import { FormEvent, useEffect, useState, useRef } from "react";
 import QRCode from "qrcode";
-import {
-  AlertTriangle,
-  CheckCircle,
-  Copy,
-  Loader2,
-  Send,
-  Wallet,
-  CreditCard,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle, Copy, Loader2, Send, Wallet, CreditCard } from "lucide-react";
 import { createInvoice, checkInvoice, API_URL } from "@/lib/api";
 import type { InvoiceResponse } from "@/lib/types";
 import { payWithWebLn } from "@/lib/webln";
@@ -27,9 +19,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
   const [message, setMessage] = useState("");
   const [invoice, setInvoice] = useState<InvoiceResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "creating" | "pending" | "paid" | "failed"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "creating" | "pending" | "paid" | "failed">("idle");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -71,11 +61,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
       }
     } catch (submitError) {
       setStatus("failed");
-      setError(
-        submitError instanceof Error
-          ? submitError.message
-          : "Could not create invoice",
-      );
+      setError(submitError instanceof Error ? submitError.message : "Could not create invoice");
     }
   }
 
@@ -129,11 +115,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
         }
       }
     } catch (paymentError) {
-      setError(
-        paymentError instanceof Error
-          ? paymentError.message
-          : "Failed to simulate payment",
-      );
+      setError(paymentError instanceof Error ? paymentError.message : "Failed to simulate payment");
     }
   }
 
@@ -163,9 +145,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
         <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center">
           <CheckCircle className="w-10 h-10 text-satGreen" />
         </div>
-        <h2 className="text-2xl font-bold text-satBlack brand-font">
-          Message Sent!
-        </h2>
+        <h2 className="text-2xl font-bold text-satBlack brand-font">Message Sent!</h2>
         <p className="text-slate-500 max-w-[240px]">
           Your payment is confirmed and your message has been sent.
         </p>
@@ -190,9 +170,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
         {status === "idle" || status === "creating" || (status === "failed" && !invoice) ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-satBlack">
-                Your name
-              </label>
+              <label className="text-sm font-bold text-satBlack">Your name</label>
               <input
                 type="text"
                 required
@@ -204,9 +182,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-satBlack">
-                Your email
-              </label>
+              <label className="text-sm font-bold text-satBlack">Your email</label>
               <input
                 type="email"
                 required
@@ -218,9 +194,7 @@ export function WidgetForm({ formId }: WidgetFormProps) {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-bold text-satBlack">
-                Message
-              </label>
+              <label className="text-sm font-bold text-satBlack">Message</label>
               <textarea
                 required
                 minLength={10}
@@ -235,12 +209,8 @@ export function WidgetForm({ formId }: WidgetFormProps) {
             </div>
 
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
-              <span className="text-sm font-semibold text-slate-500">
-                Amount
-              </span>
-              <span className="font-bold text-satBlue">
-                Set by form owner
-              </span>
+              <span className="text-sm font-semibold text-slate-500">Amount</span>
+              <span className="font-bold text-satBlue">Set by form owner</span>
             </div>
 
             <PrimaryButton
@@ -265,21 +235,13 @@ export function WidgetForm({ formId }: WidgetFormProps) {
           <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
             <div className="flex flex-col items-center space-y-4">
               <div className="text-center">
-                <p className="text-sm font-semibold text-slate-500">
-                  Amount due
-                </p>
-                <p className="text-2xl font-bold text-satBlue">
-                  {invoice?.amount_sats} SATS
-                </p>
+                <p className="text-sm font-semibold text-slate-500">Amount due</p>
+                <p className="text-2xl font-bold text-satBlue">{invoice?.amount_sats} SATS</p>
               </div>
 
               {qrDataUrl && (
                 <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
-                  <img
-                    src={qrDataUrl}
-                    alt="Lightning Invoice"
-                    className="w-44 h-44"
-                  />
+                  <img src={qrDataUrl} alt="Lightning Invoice" className="w-44 h-44" />
                 </div>
               )}
 
@@ -300,21 +262,14 @@ export function WidgetForm({ formId }: WidgetFormProps) {
 
                 <div className="grid grid-cols-2 gap-3">
                   <button
-                    onClick={() =>
-                      payWithWebLn(invoice?.payment_request || "")
-                    }
+                    onClick={() => payWithWebLn(invoice?.payment_request || "")}
                     className="flex items-center justify-center p-3 bg-satBlue hover:bg-blue-700 text-white rounded-lg font-bold transition-colors shadow-sm"
                   >
                     <Wallet className="w-4 h-4 mr-2" />
                     WebLN
                   </button>
                   <button
-                    onClick={() =>
-                      window.open(
-                        `lightning:${invoice?.payment_request}`,
-                        "_blank",
-                      )
-                    }
+                    onClick={() => window.open(`lightning:${invoice?.payment_request}`, "_blank")}
                     className="flex items-center justify-center p-3 bg-white hover:bg-slate-50 text-satBlack border border-slate-200 rounded-lg font-bold transition-colors shadow-sm"
                   >
                     Open Wallet
