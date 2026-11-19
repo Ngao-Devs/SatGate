@@ -5,7 +5,12 @@ type PrimaryButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   tone?: "primary" | "success" | "neutral";
 };
 
-export function PrimaryButton({ children, className = "", tone = "primary", ...props }: PrimaryButtonProps) {
+export function PrimaryButton({
+  children,
+  className = "",
+  tone = "primary",
+  ...props
+}: PrimaryButtonProps) {
   const toneClass =
     tone === "success"
       ? "bg-satGreen text-white hover:bg-green-700"

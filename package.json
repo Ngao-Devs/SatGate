@@ -6,7 +6,12 @@
     "build": "pnpm --filter @satgo/web build",
     "lint": "pnpm --filter @satgo/web lint",
     "api:dev": "cd services/api && go run .",
-    "api:check": "cd services/api && go test ./... && go vet ./... && go build ./..."
+    "api:check": "cd services/api && go test ./... && go vet ./... && go build ./...",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
-  "packageManager": "pnpm@10.30.3"
+  "packageManager": "pnpm@10.30.3",
+  "devDependencies": {
+    "prettier": "^3.9.10"
+  }
 }

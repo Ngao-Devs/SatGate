@@ -26,9 +26,8 @@ export function WidgetForm({ formId }: WidgetFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-      console.log("FORM ID:", formId);
-
-    console.log("submit fired")
+    console.log("FORM ID:", formId);
+    console.log("submit fired");
     setError("");
     setStatus("creating");
 
@@ -41,9 +40,8 @@ export function WidgetForm({ formId }: WidgetFormProps) {
       });
       setInvoice(nextInvoice);
       console.log("INVOICE FROM BACKEND:", nextInvoice);
-console.log("PAYMENT REQUEST:", nextInvoice.payment_request);
+      console.log("PAYMENT REQUEST:", nextInvoice.payment_request);
       setStatus("pending");
-
 
       const nextQr = await QRCode.toDataURL(nextInvoice.payment_request, {
         margin: 1,
@@ -140,12 +138,14 @@ console.log("PAYMENT REQUEST:", nextInvoice.payment_request);
             <p className="mt-2 text-sm leading-6">
               Your paid message is now visible in the SatGate dashboard.
             </p>
-            <PrimaryButton className="mt-4" onClick={() => {
-              setInvoice(null);
-              
-              setQrDataUrl("");
-              setStatus("idle");
-            }}>
+            <PrimaryButton
+              className="mt-4"
+              onClick={() => {
+                setInvoice(null);
+                setQrDataUrl("");
+                setStatus("idle");
+              }}
+            >
               Send another
             </PrimaryButton>
           </section>
@@ -192,7 +192,11 @@ console.log("PAYMENT REQUEST:", nextInvoice.payment_request);
 
             {!invoice ? (
               <PrimaryButton className="w-full" disabled={status === "creating"} type="submit">
-                {status === "creating" ? <Loader2 className="animate-spin" size={17} aria-hidden="true" /> : <Send size={17} aria-hidden="true" />}
+                {status === "creating" ? (
+                  <Loader2 className="animate-spin" size={17} aria-hidden="true" />
+                ) : (
+                  <Send size={17} aria-hidden="true" />
+                )}
                 Request invoice
               </PrimaryButton>
             ) : (
@@ -235,7 +239,9 @@ function PaymentPanel({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="brand-font text-lg font-bold">Pay {invoice.amount_sats} sats</h2>
-          <p className="mt-1 text-sm text-slate-600">Invoice expires at {new Date(invoice.expires_at).toLocaleTimeString()}.</p>
+          <p className="mt-1 text-sm text-slate-600">
+            Invoice expires at {new Date(invoice.expires_at).toLocaleTimeString()}.
+          </p>
         </div>
         <StatusBadge status={status} />
       </div>

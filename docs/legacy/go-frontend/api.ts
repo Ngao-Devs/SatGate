@@ -67,10 +67,9 @@ export function mockPayInvoice(invoiceId: string) {
   });
 }
 
-
 export async function updateForm(
   id: string,
-  data: { name: string; domain: string; amount_sats: number }
+  data: { name: string; domain: string; amount_sats: number },
 ): Promise<SatGateForm> {
   const res = await fetch(`${API_URL}/api/forms/${id}`, {
     method: "PUT",

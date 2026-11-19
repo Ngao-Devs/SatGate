@@ -8,15 +8,30 @@ export default function LandingPage() {
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <a href="/" className="brand-font text-3xl font-extrabold tracking-tight text-satBlack hover:text-satBlue transition">
+          <a
+            href="/"
+            className="brand-font text-3xl font-extrabold tracking-tight text-satBlack hover:text-satBlue transition"
+          >
             SatGo
           </a>
         </div>
         <nav className="hidden md:block">
           <ul className="brand-font flex gap-8 text-lg font-bold">
-            <li><a href="#features" className="hover:text-satBlue transition">Features</a></li>
-            <li><a href="#how-it-works" className="hover:text-satBlue transition">How it works</a></li>
-            <li><Link href="/demo" className="hover:text-satBlue transition">Demo</Link></li>
+            <li>
+              <a href="#features" className="hover:text-satBlue transition">
+                Features
+              </a>
+            </li>
+            <li>
+              <a href="#how-it-works" className="hover:text-satBlue transition">
+                How it works
+              </a>
+            </li>
+            <li>
+              <Link href="/demo" className="hover:text-satBlue transition">
+                Demo
+              </Link>
+            </li>
           </ul>
         </nav>
         <div className="flex items-center gap-4">
@@ -38,13 +53,22 @@ export default function LandingPage() {
             <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-blue-500/10 blur-[130px] md:animate-pulse duration-5000" />
             <div className="absolute top-1/4 left-1/4 h-[400px] w-[400px] rounded-full bg-indigo-500/10 blur-[110px] md:animate-pulse duration-7000" />
           </div>
-          
+
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="brand-font text-5xl font-extrabold tracking-tight sm:text-7xl leading-[1.2] sm:leading-[1.1]">
-              Stop <span className="inline-block md:animate-bounce-custom underline decoration-[8px] decoration-satRed/80 underline-offset-[10px]">spam</span> with <span className="inline-block md:animate-bounce-custom delay-200 text-satBlue underline decoration-[8px] decoration-satBlue/80 underline-offset-[10px]">Sats</span>.
+              Stop{" "}
+              <span className="inline-block md:animate-bounce-custom underline decoration-[8px] decoration-satRed/80 underline-offset-[10px]">
+                spam
+              </span>{" "}
+              with{" "}
+              <span className="inline-block md:animate-bounce-custom delay-200 text-satBlue underline decoration-[8px] decoration-satBlue/80 underline-offset-[10px]">
+                Sats
+              </span>
+              .
             </h1>
             <p className="mx-auto mt-8 max-w-2xl text-lg sm:text-xl leading-8 text-slate-600">
-              SatGo adds a tiny cost to your contact form. Real leads won&apos;t mind paying 5 sats, but automated spammers will find it prohibitively expensive.
+              SatGo adds a tiny cost to your contact form. Real leads won&apos;t mind paying 5 sats,
+              but automated spammers will find it prohibitively expensive.
             </p>
             <div className="mt-12 flex items-center justify-center gap-x-6">
               <Link href="/dashboard">
@@ -53,7 +77,10 @@ export default function LandingPage() {
                   <ArrowRight size={20} />
                 </PrimaryButton>
               </Link>
-              <Link href="/demo" className="text-sm font-bold leading-6 text-satBlack hover:text-satBlue transition flex items-center gap-1.5">
+              <Link
+                href="/demo"
+                className="text-sm font-bold leading-6 text-satBlack hover:text-satBlue transition flex items-center gap-1.5"
+              >
                 Live demo <span aria-hidden="true">→</span>
               </Link>
             </div>
@@ -64,22 +91,27 @@ export default function LandingPage() {
         <section id="features" className="bg-slate-50 py-24 sm:py-32">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="brand-font text-3xl font-bold tracking-tight sm:text-4xl">Everything you need to secure your forms</h2>
-              <p className="mt-4 text-lg text-slate-600">Built for independent founders and creators who are tired of sorting through junk mail.</p>
+              <h2 className="brand-font text-3xl font-bold tracking-tight sm:text-4xl">
+                Everything you need to secure your forms
+              </h2>
+              <p className="mt-4 text-lg text-slate-600">
+                Built for independent founders and creators who are tired of sorting through junk
+                mail.
+              </p>
             </div>
             <div className="mx-auto mt-16 max-w-7xl sm:mt-20 lg:mt-24">
               <dl className="grid max-w-xl grid-cols-1 gap-x-8 gap-y-10 lg:max-w-none lg:grid-cols-3">
-                <Feature 
+                <Feature
                   icon={<ShieldCheck className="text-satBlue" size={24} />}
                   title="Proof of Intent"
                   description="A paid message is a verified message. Require an economic commitment before anyone reaches your inbox."
                 />
-                <Feature 
+                <Feature
                   icon={<Zap className="text-satBlue" size={24} />}
                   title="Lightning Fast"
                   description="Powered by the Bitcoin Lightning Network. Payments are instant, global, and have near-zero fees."
                 />
-                <Feature 
+                <Feature
                   icon={<Mail className="text-satBlue" size={24} />}
                   title="Easy Integration"
                   description="Drop our iframe widget into any site—WordPress, Webflow, or custom React apps—in seconds."
@@ -94,19 +126,21 @@ export default function LandingPage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 gap-x-12 gap-y-16 lg:grid-cols-2 lg:items-center">
               <div>
-                <h2 className="brand-font text-3xl font-bold tracking-tight sm:text-4xl">Simple for you, simple for your leads.</h2>
+                <h2 className="brand-font text-3xl font-bold tracking-tight sm:text-4xl">
+                  Simple for you, simple for your leads.
+                </h2>
                 <div className="mt-10 space-y-8">
-                  <Step 
+                  <Step
                     number="1"
                     title="Create a protected form"
                     description="Set your price (e.g., 5-10 sats) and generate your unique embed code."
                   />
-                  <Step 
+                  <Step
                     number="2"
                     title="Embed on your site"
                     description="Paste the iframe snippet into your contact page. It works everywhere."
                   />
-                  <Step 
+                  <Step
                     number="3"
                     title="Receive verified messages"
                     description="Paid messages appear instantly in your SatGo dashboard. No more spam."
@@ -125,8 +159,8 @@ export default function LandingPage() {
                         <div className="h-3 w-3 rounded-full bg-green-400"></div>
                       </div>
                       <div className="flex items-center gap-2">
-                         <div className="h-4 w-4 rounded-full bg-slate-200"></div>
-                         <div className="h-3 w-24 rounded bg-slate-200"></div>
+                        <div className="h-4 w-4 rounded-full bg-slate-200"></div>
+                        <div className="h-3 w-24 rounded bg-slate-200"></div>
                       </div>
                     </div>
 
@@ -202,28 +236,40 @@ export default function LandingPage() {
           <div className="flex items-center gap-2">
             <span className="brand-font text-xl font-bold">SatGo</span>
           </div>
-          <p className="text-sm text-slate-500">
-            © 2026 SatGo. Built for the future of the web.
-          </p>
+          <p className="text-sm text-slate-500">© 2026 SatGo. Built for the future of the web.</p>
         </div>
       </footer>
     </div>
   );
 }
 
-function Feature({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+function Feature({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50">
-        {icon}
-      </div>
+      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-50">{icon}</div>
       <dt className="brand-font text-xl font-bold text-satBlack">{title}</dt>
       <dd className="text-base leading-7 text-slate-600">{description}</dd>
     </div>
   );
 }
 
-function Step({ number, title, description }: { number: string, title: string, description: string }) {
+function Step({
+  number,
+  title,
+  description,
+}: {
+  number: string;
+  title: string;
+  description: string;
+}) {
   return (
     <div className="flex gap-4">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-satBlue text-sm font-bold text-white">
