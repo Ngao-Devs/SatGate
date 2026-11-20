@@ -2,22 +2,21 @@ FROM golang:1.22-alpine AS builder
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY go-api/go.mod go-api/go.sum ./
 RUN go mod download
 
-COPY . .
+COPY go-api/main.go ./
+COPY go-api/migrations/ ./migrations/
 
-RUN apk add --no-cache gcc musl-dev
-
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o go-api ./main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o /go-api ./main.go
 
 FROM alpine:3.19
 
 RUN apk add --no-cache ca-certificates
 
-WORKDIR /root
+WORKDIR /app
 
-COPY --from=builder /app/go-api .
+COPY --from=builder /go-api ./go-api
 
 EXPOSE 8080
 
