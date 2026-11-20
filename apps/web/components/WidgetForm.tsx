@@ -8,31 +8,23 @@ import type { InvoiceResponse } from "@/lib/types";
 import { payWithWebLn } from "@/lib/webln";
 import { PrimaryButton } from "./PrimaryButton";
 import { StatusBadge } from "./StatusBadge";
-import { useSearchParams } from "next/navigation";
 
 type WidgetFormProps = {
   formId: string;
 };
 
 export function WidgetForm({ formId }: WidgetFormProps) {
-  const searchParams = useSearchParams();
-  const amountSats = parseInt(searchParams.get("amount") || "5", 10);
-
+  const [senderName, setSenderName] = useState("");
+  const [senderEmail, setSenderEmail] = useState("");
   const [message, setMessage] = useState("");
   const [invoice, setInvoice] = useState<InvoiceResponse | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [status, setStatus] = useState<"idle" | "creating" | "pending" | "paid" | "failed">("idle");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [isMock, setIsMock] = useState(false);
 
+  const isMock = process.env.NEXT_PUBLIC_LN_MODE === "mock";
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    // Check if we are in mock mode (purely for UI assistance in the demo)
-    // We'll just assume mock if the LN_API_KEY isn't set in the env
-    setIsMock(process.env.NEXT_PUBLIC_LN_MODE === "mock" || true);
-  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -40,11 +32,16 @@ export function WidgetForm({ formId }: WidgetFormProps) {
     setStatus("creating");
 
     try {
-      const nextInvoice = await createInvoice(formId, message, amountSats);
+      const nextInvoice = await createInvoice(formId, {
+        sender_name: senderName,
+        sender_email: senderEmail,
+        body: message,
+      });
+
       setInvoice(nextInvoice);
       setStatus("pending");
 
-      const nextQr = await QRCode.toDataURL(nextInvoice.payment_request.toUpperCase(), {
+      const nextQr = await QRCode.toDataURL(nextInvoice.payment_request, {
         margin: 2,
         width: 300,
         errorCorrectionLevel: "M",
@@ -53,14 +50,14 @@ export function WidgetForm({ formId }: WidgetFormProps) {
           light: "#ffffff",
         },
       });
-      setQrDataUrl(nextQr);
 
-      startPolling(nextInvoice.payment_hash);
+      setQrDataUrl(nextQr);
+      startPolling(nextInvoice.invoice_id);
 
       try {
         await payWithWebLn(nextInvoice.payment_request);
-      } catch (e) {
-        console.log("WebLN auto-pay skipped or failed", e);
+      } catch (paymentError) {
+        console.log("WebLN auto-pay skipped or failed", paymentError);
       }
     } catch (submitError) {
       setStatus("failed");
@@ -68,57 +65,77 @@ export function WidgetForm({ formId }: WidgetFormProps) {
     }
   }
 
-  function startPolling(hash: string) {
-    if (pollingRef.current) clearInterval(pollingRef.current);
+  function startPolling(invoiceId: string) {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
 
     pollingRef.current = setInterval(async () => {
       try {
-        const { paid } = await checkInvoice(hash);
-        if (paid) {
+        const invoiceStatus = await checkInvoice(invoiceId);
+
+        if (invoiceStatus.status === "paid" || invoiceStatus.paid_at !== null) {
           setStatus("paid");
-          if (pollingRef.current) clearInterval(pollingRef.current);
+
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
         }
-      } catch (e) {
-        console.error("Polling error", e);
+      } catch (pollingError) {
+        console.error("Polling error", pollingError);
       }
     }, 2000);
   }
 
-  // Helper for demo: manually trigger a mock payment
   async function handleSimulatePayment() {
     if (!invoice) return;
+
+    setError("");
+
     try {
-      await fetch(`${API_URL}/webhook`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Webhook-Signature": "mock", // Backend main.rs handles this if secret is default
-        },
-        body: JSON.stringify({
-          payment_hash: invoice.payment_hash,
-          preimage: "0000000000000000000000000000000000000000000000000000000000000000", // mock preimage
-          amount: amountSats,
-        }),
-      });
-    } catch (e) {
-      setError("Failed to simulate payment");
+      const response = await fetch(
+        `${API_URL}/invoices/${encodeURIComponent(invoice.invoice_id)}/mock-pay`,
+        { method: "POST" },
+      );
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error || "Failed to simulate payment");
+      }
+
+      const result = await response.json();
+
+      if (result.status === "paid" || result.paid_at) {
+        setStatus("paid");
+
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      }
+    } catch (paymentError) {
+      setError(paymentError instanceof Error ? paymentError.message : "Failed to simulate payment");
     }
   }
 
   useEffect(() => {
     return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
     };
   }, []);
 
   const copyToClipboard = async () => {
     if (!invoice) return;
+
     try {
       await navigator.clipboard.writeText(invoice.payment_request);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy!", err);
+    } catch (copyError) {
+      console.error("Failed to copy invoice", copyError);
     }
   };
 
@@ -129,7 +146,9 @@ export function WidgetForm({ formId }: WidgetFormProps) {
           <CheckCircle className="w-10 h-10 text-satGreen" />
         </div>
         <h2 className="text-2xl font-bold text-satBlack brand-font">Message Sent!</h2>
-        <p className="text-slate-500 max-w-[240px]">Sarah has received your verified message.</p>
+        <p className="text-slate-500 max-w-[240px]">
+          Your payment is confirmed and your message has been sent.
+        </p>
         <button
           onClick={() => window.location.reload()}
           className="text-satBlue font-semibold hover:underline mt-4"
@@ -148,22 +167,50 @@ export function WidgetForm({ formId }: WidgetFormProps) {
           <StatusBadge status={status} />
         </div>
 
-        {status === "idle" || status === "creating" ? (
+        {status === "idle" || status === "creating" || (status === "failed" && !invoice) ? (
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-satBlack">Your name</label>
+              <input
+                type="text"
+                required
+                value={senderName}
+                onChange={(event) => setSenderName(event.target.value)}
+                placeholder="Your name"
+                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-satBlack placeholder:text-slate-400 focus:ring-2 focus:ring-satBlue/20 focus:border-satBlue outline-none transition-all shadow-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-bold text-satBlack">Your email</label>
+              <input
+                type="email"
+                required
+                value={senderEmail}
+                onChange={(event) => setSenderEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="w-full bg-white border border-slate-200 rounded-lg p-3 text-satBlack placeholder:text-slate-400 focus:ring-2 focus:ring-satBlue/20 focus:border-satBlue outline-none transition-all shadow-sm"
+              />
+            </div>
+
             <div className="space-y-1.5">
               <label className="text-sm font-bold text-satBlack">Message</label>
               <textarea
                 required
+                minLength={10}
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(event) => setMessage(event.target.value)}
                 placeholder="What's on your mind?"
                 className="w-full h-32 bg-white border border-slate-200 rounded-lg p-3 text-satBlack placeholder:text-slate-400 focus:ring-2 focus:ring-satBlue/20 focus:border-satBlue outline-none transition-all resize-none shadow-sm"
               />
+              <p className="text-xs text-slate-400">
+                Your message must contain at least 10 characters.
+              </p>
             </div>
 
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
               <span className="text-sm font-semibold text-slate-500">Amount</span>
-              <span className="font-bold text-satBlue">{amountSats} SATS</span>
+              <span className="font-bold text-satBlue">Set by form owner</span>
             </div>
 
             <PrimaryButton
@@ -187,6 +234,11 @@ export function WidgetForm({ formId }: WidgetFormProps) {
         ) : (
           <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-300">
             <div className="flex flex-col items-center space-y-4">
+              <div className="text-center">
+                <p className="text-sm font-semibold text-slate-500">Amount due</p>
+                <p className="text-2xl font-bold text-satBlue">{invoice?.amount_sats} SATS</p>
+              </div>
+
               {qrDataUrl && (
                 <div className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
                   <img src={qrDataUrl} alt="Lightning Invoice" className="w-44 h-44" />
