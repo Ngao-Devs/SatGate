@@ -91,13 +91,13 @@ These principles guide implementation and review; the corresponding ADRs should 
 
 ## 6. Current Implementation Status
 
-| Component | Current status |
-|---|---|
-| Go backend | Primary backend implementation |
-| Blink API integration | Working during the testing stage |
-| Invoice creation and payment flow | Available for testing |
-| Anti-abuse controls | Part of the system's protection model; individual implementations should be verified against the codebase |
-| Production readiness | Requires validation of security, reliability, configuration, and operational requirements |
+| Component                         | Current status                                                                                            |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Go backend                        | Primary backend implementation                                                                            |
+| Blink API integration             | Working during the testing stage                                                                          |
+| Invoice creation and payment flow | Available for testing                                                                                     |
+| Anti-abuse controls               | Part of the system's protection model; individual implementations should be verified against the codebase |
+| Production readiness              | Requires validation of security, reliability, configuration, and operational requirements                 |
 
 The use of Blink during testing does not, by itself, determine whether it will remain the production payment provider. That decision should be documented separately if and when it is made.
 

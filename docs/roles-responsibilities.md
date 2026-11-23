@@ -15,6 +15,7 @@ These roles support the implementation of SatGate's Architecture Decision Record
 **Recommended contributors: 1–2**
 
 **Responsibilities:**
+
 - Maintain a consistent, maintainable system architecture.
 - Ensure implementations align with approved ADRs.
 - Identify architectural dependencies and potential design conflicts.
@@ -28,6 +29,7 @@ These roles support the implementation of SatGate's Architecture Decision Record
 **Recommended contributors: 3**
 
 **Responsibilities:**
+
 - Develop and maintain SatGate's Go backend.
 - Implement API functionality and core request-processing logic.
 - Integrate payment, authorization, and application-integration components.
@@ -42,6 +44,7 @@ These roles support the implementation of SatGate's Architecture Decision Record
 **Recommended contributors: 2**
 
 **Responsibilities:**
+
 - Identify threats and potential abuse scenarios affecting SatGate.
 - Design and implement appropriate anti-spam and request-validation controls.
 - Evaluate rate limiting, replay prevention, and other abuse-mitigation techniques.
@@ -55,6 +58,7 @@ These roles support the implementation of SatGate's Architecture Decision Record
 **Recommended contributors: 2**
 
 **Responsibilities:**
+
 - Maintain and improve the existing Blink API payment integration.
 - Work on invoice creation and reliable payment-status verification.
 - Handle payment failures, duplicate notifications, and unexpected payment states.
@@ -70,6 +74,7 @@ These roles support the implementation of SatGate's Architecture Decision Record
 **Recommended contributors: 2**
 
 **Responsibilities:**
+
 - Research and evaluate protocols that could strengthen SatGate's authorization model.
 - Evaluate L402 and its suitability for SatGate's anti-abuse use cases.
 - Define how credentials, proofs, and authorization requirements should be handled.
@@ -85,6 +90,7 @@ L402 remains an evaluation candidate unless a subsequent architectural decision 
 **Recommended contributors: 2**
 
 **Responsibilities:**
+
 - Develop integrations between SatGate and protected application workflows.
 - Support the initial focus on contact forms and email-sending endpoints.
 - Ensure integration flows handle validation, payment requirements, and failures appropriately.
@@ -98,6 +104,7 @@ L402 remains an evaluation candidate unless a subsequent architectural decision 
 **Recommended contributors: 1–2**
 
 **Responsibilities:**
+
 - Develop and maintain automated tests for critical system behavior.
 - Test invoice and payment flows, including failures and duplicate events.
 - Verify authorization and anti-abuse behavior.
@@ -111,6 +118,7 @@ L402 remains an evaluation candidate unless a subsequent architectural decision 
 **Recommended contributors: 1**
 
 **Responsibilities:**
+
 - Support development, testing, and deployment environments.
 - Maintain CI/CD pipelines and automated quality checks.
 - Manage application configuration and deployment secrets securely.
