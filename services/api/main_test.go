@@ -56,12 +56,13 @@ func newTestAPI(t *testing.T) (*sql.DB, *gin.Engine) {
 	for _, formID := range []string{"form-owner-a", "form-owner-b"} {
 		_, err := db.Exec(`
 			INSERT INTO messages (
-				id, form_id, sender_name, sender_email,
+				id, owner_id, form_id, sender_name, sender_email,
 				body, status, created_at, paid_at
 			)
-			VALUES (?, ?, ?, ?, ?, 'paid', ?, ?)
+			VALUES (?, ?, ?, ?, ?, ?, 'paid', ?, ?)
 		`,
 			"message-"+formID,
+			strings.TrimPrefix(formID, "form-"),
 			formID,
 			"Test Sender",
 			"sender@example.com",
