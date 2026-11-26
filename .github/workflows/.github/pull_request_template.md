@@ -11,6 +11,7 @@ Provide a brief description of the changes.
 Closes #
 
 ---
+
 ## Type of Change
 
 - [ ] Feature
@@ -20,9 +21,11 @@ Closes #
 - [ ] Performance Improvement
 - [ ] Security
 - [ ] Infrastructure / DevOps
+
 ---
+
 ## What Changed?
 
-- 
-- 
+-
+-
 -
