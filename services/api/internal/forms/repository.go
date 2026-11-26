@@ -19,7 +19,7 @@ func NewRepository(db *sql.DB) *Repository {
 
 func (r *Repository) ListByOwner(ctx context.Context, ownerID string) ([]Form, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, name, domain, amount_sats, created_at
+		SELECT id, name, domain, amount_sats, sat_balance, min_amount_sats, created_at
 		FROM forms
 		WHERE owner_id = ?
 		ORDER BY created_at DESC
@@ -38,6 +38,8 @@ func (r *Repository) ListByOwner(ctx context.Context, ownerID string) ([]Form, e
 			&form.Name,
 			&form.Domain,
 			&form.AmountSats,
+			&form.SatBalance,
+			&form.MinAmountSats,
 			&form.CreatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan form: %w", err)
@@ -56,15 +58,18 @@ func (r *Repository) ListByOwner(ctx context.Context, ownerID string) ([]Form, e
 func (r *Repository) Create(ctx context.Context, ownerID string, form Form) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO forms (
-			id, owner_id, name, domain, amount_sats, created_at
+			id, owner_id, name, domain, amount_sats,
+			sat_balance, min_amount_sats, created_at
 		)
-		VALUES (?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		form.ID,
 		ownerID,
 		form.Name,
 		form.Domain,
 		form.AmountSats,
+		form.SatBalance,
+		form.MinAmountSats,
 		form.CreatedAt,
 	)
 	if err != nil {
@@ -78,7 +83,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Form, error) {
 	var form Form
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, domain, amount_sats, created_at
+		SELECT id, name, domain, amount_sats, sat_balance, min_amount_sats, created_at
 		FROM forms
 		WHERE id = ?
 	`, id).Scan(
@@ -86,6 +91,8 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Form, error) {
 		&form.Name,
 		&form.Domain,
 		&form.AmountSats,
+		&form.SatBalance,
+		&form.MinAmountSats,
 		&form.CreatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -102,7 +109,7 @@ func (r *Repository) GetByIDAndOwner(ctx context.Context, id, ownerID string) (*
 	var form Form
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, domain, amount_sats, created_at
+		SELECT id, name, domain, amount_sats, sat_balance, min_amount_sats, created_at
 		FROM forms
 		WHERE id = ? AND owner_id = ?
 	`, id, ownerID).Scan(
@@ -110,6 +117,8 @@ func (r *Repository) GetByIDAndOwner(ctx context.Context, id, ownerID string) (*
 		&form.Name,
 		&form.Domain,
 		&form.AmountSats,
+		&form.SatBalance,
+		&form.MinAmountSats,
 		&form.CreatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -125,12 +134,13 @@ func (r *Repository) GetByIDAndOwner(ctx context.Context, id, ownerID string) (*
 func (r *Repository) Update(ctx context.Context, ownerID string, form Form) error {
 	result, err := r.db.ExecContext(ctx, `
 		UPDATE forms
-		SET name = ?, domain = ?, amount_sats = ?
+		SET name = ?, domain = ?, amount_sats = ?, min_amount_sats = ?
 		WHERE id = ? AND owner_id = ?
 	`,
 		form.Name,
 		form.Domain,
 		form.AmountSats,
+		form.MinAmountSats,
 		form.ID,
 		ownerID,
 	)
