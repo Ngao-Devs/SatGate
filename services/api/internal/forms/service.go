@@ -30,11 +30,12 @@ func (s *Service) List(ctx context.Context, ownerID string) ([]Form, error) {
 
 func (s *Service) Create(ctx context.Context, ownerID string, request CreateFormRequest) (*Form, error) {
 	form := Form{
-		ID:         uuid.NewString(),
-		Name:       strings.TrimSpace(request.Name),
-		Domain:     strings.TrimSpace(request.Domain),
-		AmountSats: request.AmountSats,
-		CreatedAt:  time.Now().UTC(),
+		ID:            uuid.NewString(),
+		Name:          strings.TrimSpace(request.Name),
+		Domain:        strings.TrimSpace(request.Domain),
+		AmountSats:    request.AmountSats,
+		MinAmountSats: request.MinAmountSats,
+		CreatedAt:     time.Now().UTC(),
 	}
 
 	if form.MinAmountSats == 0 {
@@ -54,10 +55,11 @@ func (s *Service) Create(ctx context.Context, ownerID string, request CreateForm
 
 func (s *Service) Update(ctx context.Context, ownerID, id string, request UpdateFormRequest) (*Form, error) {
 	form := Form{
-		ID:         id,
-		Name:       strings.TrimSpace(request.Name),
-		Domain:     strings.TrimSpace(request.Domain),
-		AmountSats: request.AmountSats,
+		ID:            id,
+		Name:          strings.TrimSpace(request.Name),
+		Domain:        strings.TrimSpace(request.Domain),
+		AmountSats:    request.AmountSats,
+		MinAmountSats: request.MinAmountSats,
 	}
 
 	if form.MinAmountSats == 0 {
