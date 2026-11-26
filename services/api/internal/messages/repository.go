@@ -20,7 +20,7 @@ func (r *Repository) ListPaidByOwner(ctx context.Context, ownerID string) ([]Mes
 		FROM messages m
 		JOIN forms f ON f.id = m.form_id
 		LEFT JOIN invoices i ON i.message_id = m.id
-		WHERE m.status = 'paid' AND f.owner_id = ?
+		WHERE m.status = 'paid' AND m.owner_id = ?
 		ORDER BY m.paid_at DESC, m.created_at DESC
 	`, ownerID)
 	if err != nil {
