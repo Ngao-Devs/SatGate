@@ -3,6 +3,7 @@ package forms
 import "time"
 
 type Form struct {
+	OwnerID       string    `json:"-"`
 	ID            string    `json:"id"`
 	Name          string    `json:"name"`
 	Domain        string    `json:"domain"`
