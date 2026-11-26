@@ -19,8 +19,14 @@ func newTestInvoiceRepository(t *testing.T) (*sql.DB, *Repository) {
 	}
 
 	_, err = db.Exec(`
+		CREATE TABLE forms (
+			id TEXT PRIMARY KEY,
+			sat_balance INTEGER NOT NULL DEFAULT 0
+		);
+
 		CREATE TABLE messages (
 			id TEXT PRIMARY KEY,
+			form_id TEXT NOT NULL,
 			status TEXT NOT NULL,
 			paid_at DATETIME
 		);
@@ -28,14 +34,17 @@ func newTestInvoiceRepository(t *testing.T) (*sql.DB, *Repository) {
 		CREATE TABLE invoices (
 			id TEXT PRIMARY KEY,
 			message_id TEXT NOT NULL,
+			amount_sats INTEGER NOT NULL,
 			status TEXT NOT NULL,
 			preimage TEXT,
 			paid_at DATETIME
 		);
 
-		INSERT INTO messages (id, status) VALUES ('message-1', 'pending');
-		INSERT INTO invoices (id, message_id, status)
-		VALUES ('invoice-1', 'message-1', 'pending');
+		INSERT INTO forms (id, sat_balance) VALUES ('form-1', 0);
+		INSERT INTO messages (id, form_id, status)
+		VALUES ('message-1', 'form-1', 'pending');
+		INSERT INTO invoices (id, message_id, amount_sats, status)
+		VALUES ('invoice-1', 'message-1', 25, 'pending');
 	`)
 	if err != nil {
 		db.Close()
@@ -124,5 +133,28 @@ func TestMarkPaidMissingInvoice(t *testing.T) {
 
 	if err := repository.MarkPaid(context.Background(), "missing", nil); err == nil {
 		t.Fatal("expected error for missing invoice")
+	}
+}
+
+func TestMarkPaidCreditsBalanceOnlyOnce(t *testing.T) {
+	db, repository := newTestInvoiceRepository(t)
+	ctx := context.Background()
+
+	if err := repository.MarkPaid(ctx, "invoice-1", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.MarkPaid(ctx, "invoice-1", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	var balance int64
+	if err := db.QueryRow(
+		"SELECT sat_balance FROM forms WHERE id = 'form-1'",
+	).Scan(&balance); err != nil {
+		t.Fatal(err)
+	}
+
+	if balance != 25 {
+		t.Fatalf("expected balance 25 after duplicate payment notification, got %d", balance)
 	}
 }
