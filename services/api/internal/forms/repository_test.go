@@ -27,6 +27,8 @@ func newFormsTestRepository(t *testing.T) *Repository {
 			name TEXT NOT NULL,
 			domain TEXT NOT NULL,
 			amount_sats INTEGER NOT NULL,
+                      sat_balance INTEGER NOT NULL DEFAULT 0,
+                      min_amount_sats INTEGER NOT NULL DEFAULT 5,
 			created_at DATETIME NOT NULL
 		);
 		CREATE TABLE messages (id TEXT PRIMARY KEY, form_id TEXT NOT NULL);
@@ -139,7 +141,8 @@ func insertRelatedFixtures(t *testing.T, repo *Repository) {
 	t.Helper()
 
 	_, err := repo.db.Exec(`
-		INSERT INTO forms VALUES ('form-a', 'owner-a', 'A form', 'example.com', 100, ?);
+		INSERT INTO forms (id, owner_id, name, domain, amount_sats, created_at)
+                VALUES ('form-a', 'owner-a', 'A form', 'example.com', 100, ?);
 		INSERT INTO messages VALUES ('message-a', 'form-a');
 		INSERT INTO invoices VALUES ('invoice-a', 'message-a');
 		INSERT INTO webhook_events VALUES ('event-a', 'invoice-a');
