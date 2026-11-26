@@ -200,6 +200,7 @@ func (s *AppState) createInvoice(c *gin.Context) {
 	_, err = tx.Exec(`
         INSERT INTO messages (
             id,
+            owner_id,
             form_id,
             sender_name,
             sender_email,
@@ -209,9 +210,10 @@ func (s *AppState) createInvoice(c *gin.Context) {
             created_at,
             paid_at
         )
-        VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, NULL)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, NULL)
     `,
 		messageID,
+		form.OwnerID,
 		req.FormID,
 		strings.TrimSpace(req.SenderName),
 		strings.TrimSpace(req.SenderEmail),
