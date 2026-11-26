@@ -31,30 +31,10 @@ services:
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-    networks:
-      - satgo-network
-
-  web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        # NEXT_PUBLIC_* values are embedded at build time and used by browser code.
-        NEXT_PUBLIC_API_URL: http://localhost:8080
-        NEXT_PUBLIC_LN_MODE: mock
-    restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
-      NEXT_PUBLIC_LN_MODE: mock
-    ports:
-      - "127.0.0.1:3000:3000"
     networks:
       - satgo-network
 
