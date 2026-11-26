@@ -10,9 +10,10 @@ import (
 )
 
 var (
-	ErrInvalidName   = errors.New("form name is required")
-	ErrInvalidDomain = errors.New("form domain is required")
-	ErrInvalidAmount = errors.New("amount must be between 1 and 10000 sats")
+	ErrInvalidName      = errors.New("form name is required")
+	ErrInvalidDomain    = errors.New("form domain is required")
+	ErrInvalidAmount    = errors.New("amount must be between 1 and 10000 sats")
+	ErrInvalidMinAmount = errors.New("minimum amount must be between 1 and 10000 sats")
 )
 
 type Service struct {
@@ -36,7 +37,11 @@ func (s *Service) Create(ctx context.Context, ownerID string, request CreateForm
 		CreatedAt:  time.Now().UTC(),
 	}
 
-	if err := validateForm(form.Name, form.Domain, form.AmountSats); err != nil {
+	if form.MinAmountSats == 0 {
+		form.MinAmountSats = 5
+	}
+
+	if err := validateForm(form.Name, form.Domain, form.AmountSats, form.MinAmountSats); err != nil {
 		return nil, err
 	}
 
@@ -55,7 +60,11 @@ func (s *Service) Update(ctx context.Context, ownerID, id string, request Update
 		AmountSats: request.AmountSats,
 	}
 
-	if err := validateForm(form.Name, form.Domain, form.AmountSats); err != nil {
+	if form.MinAmountSats == 0 {
+		form.MinAmountSats = 5
+	}
+
+	if err := validateForm(form.Name, form.Domain, form.AmountSats, form.MinAmountSats); err != nil {
 		return nil, err
 	}
 
@@ -74,7 +83,7 @@ func (s *Service) GetPublic(ctx context.Context, id string) (*Form, error) {
 	return s.repository.GetByID(ctx, id)
 }
 
-func validateForm(name, domain string, amountSats int64) error {
+func validateForm(name, domain string, amountSats, minAmountSats int64) error {
 	if name == "" {
 		return ErrInvalidName
 	}
@@ -83,6 +92,9 @@ func validateForm(name, domain string, amountSats int64) error {
 	}
 	if amountSats < 1 || amountSats > 10000 {
 		return ErrInvalidAmount
+	}
+	if minAmountSats < 1 || minAmountSats > 10000 {
+		return ErrInvalidMinAmount
 	}
 	return nil
 }
