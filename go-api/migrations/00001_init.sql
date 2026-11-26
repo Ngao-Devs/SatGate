@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS submissions (
     message TEXT NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'verified',
     paid_sats BIGINT NOT NULL,
-    timestamp VARCHAR(255) NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
     payment_hash VARCHAR(255) NOT NULL UNIQUE,
     preimage VARCHAR(255) NOT NULL UNIQUE
 );
