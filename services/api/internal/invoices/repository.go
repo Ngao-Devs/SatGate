@@ -53,29 +53,52 @@ func (r *Repository) MarkPaid(ctx context.Context, invoiceID string, preimage *s
 		return err
 	}
 
-	var messageID string
-	err = tx.QueryRow(
-		"SELECT message_id FROM invoices WHERE id = ?",
-		invoiceID,
-	).Scan(&messageID)
-	if err != nil {
-		return fmt.Errorf("invoice not found")
-	}
-
 	affected, err := result.RowsAffected()
 	if err != nil {
 		return err
 	}
 
-	if affected > 0 {
-		_, err = tx.Exec(
-			"UPDATE messages SET status = 'paid', paid_at = ? WHERE id = ?",
-			paidAt,
-			messageID,
-		)
+	if affected == 0 {
+		var exists int
+		err = tx.QueryRow(
+			"SELECT 1 FROM invoices WHERE id = ?",
+			invoiceID,
+		).Scan(&exists)
 		if err != nil {
-			return err
+			return fmt.Errorf("invoice not found: %w", err)
 		}
+		return tx.Commit()
+	}
+
+	var amountSats int64
+	var messageID, formID string
+
+	err = tx.QueryRow(`
+		SELECT i.amount_sats, m.id, m.form_id
+		FROM invoices i
+		JOIN messages m ON m.id = i.message_id
+		WHERE i.id = ?
+	`, invoiceID).Scan(&amountSats, &messageID, &formID)
+	if err != nil {
+		return fmt.Errorf("invoice or message not found: %w", err)
+	}
+
+	_, err = tx.Exec(
+		"UPDATE messages SET status = 'paid', paid_at = ? WHERE id = ?",
+		paidAt,
+		messageID,
+	)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(
+		"UPDATE forms SET sat_balance = sat_balance + ? WHERE id = ?",
+		amountSats,
+		formID,
+	)
+	if err != nil {
+		return err
 	}
 
 	return tx.Commit()
