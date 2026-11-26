@@ -83,11 +83,12 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*Form, error) {
 	var form Form
 
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, name, domain, amount_sats, sat_balance, min_amount_sats, created_at
+		SELECT id, owner_id, name, domain, amount_sats, sat_balance, min_amount_sats, created_at
 		FROM forms
 		WHERE id = ?
 	`, id).Scan(
 		&form.ID,
+                &form.OwnerID,
 		&form.Name,
 		&form.Domain,
 		&form.AmountSats,
