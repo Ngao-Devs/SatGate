@@ -45,12 +45,12 @@ func TestHandlerListReturnsOnlyOwnersPaidMessages(t *testing.T) {
 			('form-b', 'owner-b');
 
 		INSERT INTO messages (
-			id, form_id, sender_name, sender_email,
+			id, owner_id, form_id, sender_name, sender_email,
 			body, status, created_at, paid_at
 		) VALUES
-			('message-a', 'form-a', 'Alice', 'alice@example.com',
+			('message-a', 'owner-a', 'form-a', 'Alice', 'alice@example.com',
 			 'Owner A message', 'paid', ?, ?),
-			('message-b', 'form-b', 'Bob', 'bob@example.com',
+			('message-b', 'owner-b', 'form-b', 'Bob', 'bob@example.com',
 			 'Owner B message', 'paid', ?, ?);
 
 		INSERT INTO invoices (id, message_id, amount_sats) VALUES
