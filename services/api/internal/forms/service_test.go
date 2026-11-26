@@ -35,6 +35,9 @@ func TestServiceCreateTrimsInput(t *testing.T) {
 	if form.CreatedAt.IsZero() {
 		t.Error("expected creation timestamp")
 	}
+	if form.MinAmountSats != 5 {
+		t.Errorf("minimum amount = %d; want default 5", form.MinAmountSats)
+	}
 }
 
 func TestServiceCreateRejectsInvalidInput(t *testing.T) {
@@ -71,6 +74,22 @@ func TestServiceCreateRejectsInvalidInput(t *testing.T) {
 			},
 			wantErr: ErrInvalidAmount,
 		},
+		{
+			name: "minimum amount below allowed range",
+			request: CreateFormRequest{
+				Name: "Contact form", Domain: "example.com",
+				AmountSats: 100, MinAmountSats: -1,
+			},
+			wantErr: ErrInvalidMinAmount,
+		},
+		{
+			name: "minimum amount above allowed range",
+			request: CreateFormRequest{
+				Name: "Contact form", Domain: "example.com",
+				AmountSats: 100, MinAmountSats: 10001,
+			},
+			wantErr: ErrInvalidMinAmount,
+		},
 	}
 
 	for _, tt := range tests {
@@ -97,7 +116,8 @@ func TestServiceUpdate(t *testing.T) {
 	}
 
 	updated, err := service.Update(ctx, "owner-a", created.ID, UpdateFormRequest{
-		Name: "  Updated  ", Domain: "  updated.example.com  ", AmountSats: 250,
+		Name: "  Updated  ", Domain: "  updated.example.com  ",
+		AmountSats: 250, MinAmountSats: 25,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -105,6 +125,9 @@ func TestServiceUpdate(t *testing.T) {
 
 	if updated.Name != "Updated" || updated.Domain != "updated.example.com" || updated.AmountSats != 250 {
 		t.Fatalf("unexpected updated form: %+v", updated)
+	}
+	if updated.MinAmountSats != 25 {
+		t.Errorf("minimum amount = %d; want 25", updated.MinAmountSats)
 	}
 }
 
