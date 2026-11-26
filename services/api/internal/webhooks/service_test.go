@@ -28,8 +28,14 @@ func newTestWebhookService(t *testing.T) (*sql.DB, *Service) {
 	}
 
 	_, err = db.Exec(`
+		CREATE TABLE forms (
+			id TEXT PRIMARY KEY,
+			sat_balance INTEGER NOT NULL DEFAULT 0
+		);
+
 		CREATE TABLE messages (
 			id TEXT PRIMARY KEY,
+			form_id TEXT NOT NULL,
 			status TEXT NOT NULL,
 			paid_at DATETIME
 		);
@@ -37,6 +43,7 @@ func newTestWebhookService(t *testing.T) (*sql.DB, *Service) {
 		CREATE TABLE invoices (
 			id TEXT PRIMARY KEY,
 			message_id TEXT NOT NULL,
+			amount_sats INTEGER NOT NULL,
 			payment_hash TEXT,
 			status TEXT NOT NULL,
 			preimage TEXT,
@@ -50,11 +57,11 @@ func newTestWebhookService(t *testing.T) (*sql.DB, *Service) {
 			created_at DATETIME NOT NULL
 		);
 
-		INSERT INTO messages (id, status)
-		VALUES ('message-1', 'pending');
-
-		INSERT INTO invoices (id, message_id, payment_hash, status)
-		VALUES ('invoice-1', 'message-1', 'hash-123', 'pending');
+		INSERT INTO forms (id, sat_balance) VALUES ('form-1', 0);
+		INSERT INTO messages (id, form_id, status)
+		VALUES ('message-1', 'form-1', 'pending');
+		INSERT INTO invoices (id, message_id, amount_sats, payment_hash, status)
+		VALUES ('invoice-1', 'message-1', 25, 'hash-123', 'pending');
 	`)
 	if err != nil {
 		db.Close()
